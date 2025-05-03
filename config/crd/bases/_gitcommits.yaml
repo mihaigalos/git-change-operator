@@ -1,0 +1,98 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: gitcommits.
+spec:
+  group: ""
+  names:
+    kind: GitCommit
+    listKind: GitCommitList
+    plural: gitcommits
+    singular: gitcommit
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.repository
+      name: Repository
+      type: string
+    - jsonPath: .spec.branch
+      name: Branch
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.commitSHA
+      name: CommitSHA
+      type: string
+    name: ""
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              authSecretKey:
+                type: string
+              authSecretRef:
+                type: string
+              branch:
+                type: string
+              commitMessage:
+                type: string
+              files:
+                items:
+                  properties:
+                    content:
+                      type: string
+                    path:
+                      type: string
+                  required:
+                  - content
+                  - path
+                  type: object
+                type: array
+              repository:
+                type: string
+            required:
+            - authSecretRef
+            - branch
+            - commitMessage
+            - files
+            - repository
+            type: object
+          status:
+            properties:
+              commitSHA:
+                type: string
+              lastSync:
+                format: date-time
+                type: string
+              message:
+                type: string
+              phase:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-auth
+  namespace: default
+type: Opaque
+data:
+  token: <base64-encoded-github-token>
+---
+apiVersion: git.galos.one/v1
+kind: PullRequest
+metadata:
+  name: example-pr
+  namespace: default
+spec:
+  repository: https://github.com/owner/repo.git
+  baseBranch: main
+  headBranch: feature/update-config
+  title: "Update configuration via operator"
+  body: |
+    This pull request was created by the git-change-operator.
+    
+    Changes include:
+    - Updated configuration files
+    - Documentation improvements
+  authSecretRef: github-auth
+  authSecretKey: token
+  files:
+  - path: config/new-feature.yaml
+    content: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: new-feature-config
+      data:
+        enabled: true
+        feature_flag: active
+  - path: docs/feature.md
+    content: |
+      # New Feature Documentation
+      
+      This document describes the new feature implementation.
