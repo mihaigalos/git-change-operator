@@ -1,0 +1,25 @@
+apiVersion: git.galos.one/v1
+kind: PullRequest
+metadata:
+  name: test-pullrequest
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/test.git"
+  baseBranch: "main"
+  headBranch: "feature/test-pr"
+  title: "Test PR from operator"
+  body: "This is a test pull request created by the git-change-operator"
+  authSecretRef: "test-git-secret"
+  files:
+    - path: "pr-test-file.yaml"
+      content: |
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: test-service
+        spec:
+          selector:
+            app: test-app
+          ports:
+            - port: 80
+              targetPort: 8080

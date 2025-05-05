@@ -4,6 +4,12 @@ IMG ?= git-change-operator:latest
 KUBEBUILDER_ASSETS ?= $(shell pwd)/bin/kubebuilder/k8s/1.34.1-darwin-arm64
 SETUP_ENVTEST_INDEX ?= https://artifacts.rbi.tech/artifactory/raw-githubusercontent-com-raw-proxy/kubernetes-sigs/controller-tools/HEAD/envtest-releases.yaml
 
+# Go proxy configuration (can be overridden via environment variables)
+GOPROXY_ARG ?= $(GOPROXY)
+GOSUMDB_ARG ?= $(GOSUMDB)
+GONOPROXY_ARG ?= $(GONOPROXY)
+GONOSUMDB_ARG ?= $(GONOSUMDB)
+
 all: build
 
 help: ## Display this help
@@ -52,7 +58,27 @@ test-all: setup-test-env fmt vet ## Run all tests (unit + integration)
 
 ##@ Build and Deploy
 docker-build: ## Build docker image
-	docker build -t ${IMG} .
+	@if [ -f "/Users/mihai.galos/certs/zscaler.pem" ]; then \
+		echo "Copying corporate certificate for build..."; \
+		cp /Users/mihai.galos/certs/zscaler.pem ./zscaler.pem; \
+	fi
+	@echo "Building Docker image with proxy configuration..."
+	@docker build --network=host \
+		--build-arg HTTP_PROXY="${HTTP_PROXY}" \
+		--build-arg HTTPS_PROXY="${HTTPS_PROXY}" \
+		--build-arg NO_PROXY="${NO_PROXY}" \
+		--build-arg http_proxy="${http_proxy}" \
+		--build-arg https_proxy="${https_proxy}" \
+		--build-arg no_proxy="${no_proxy}" \
+		$(if $(GOPROXY_ARG),--build-arg GOPROXY="$(GOPROXY_ARG)") \
+		$(if $(GOSUMDB_ARG),--build-arg GOSUMDB="$(GOSUMDB_ARG)") \
+		$(if $(GONOPROXY_ARG),--build-arg GONOPROXY="$(GONOPROXY_ARG)") \
+		$(if $(GONOSUMDB_ARG),--build-arg GONOSUMDB="$(GONOSUMDB_ARG)") \
+		-t ${IMG} .
+	@if [ -f "./zscaler.pem" ]; then \
+		echo "Cleaning up certificate..."; \
+		rm ./zscaler.pem; \
+	fi
 
 docker-push: ## Push docker image
 	docker push ${IMG}
@@ -67,4 +93,22 @@ deploy: docker-build docker-push install ## Build, push and deploy to cluster
 
 undeploy: uninstall ## Undeploy from cluster
 
-.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy
+##@ Helm
+helm-lint: ## Lint the Helm chart
+	helm lint helm/git-change-operator
+
+helm-template: ## Generate Kubernetes manifests from Helm chart
+	helm template git-change-operator helm/git-change-operator
+
+helm-package: ## Package the Helm chart
+	helm package helm/git-change-operator -d helm/
+
+helm-install: ## Install the operator using Helm
+	helm upgrade --install git-change-operator helm/git-change-operator --create-namespace --namespace git-change-operator-system
+
+helm-uninstall: ## Uninstall the operator using Helm
+	helm uninstall git-change-operator --namespace git-change-operator-system
+
+helm-deploy: docker-build docker-push helm-package helm-install ## Build, push, package and deploy using Helm
+
+.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy

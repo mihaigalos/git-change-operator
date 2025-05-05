@@ -1,0 +1,76 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "git-change-operator.clusterRoleName" . }}
+  labels:
+    {{- include "git-change-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - git.galos.one
+  resources:
+  - gitcommits
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - git.galos.one
+  resources:
+  - gitcommits/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - git.galos.one
+  resources:
+  - gitcommits/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - git.galos.one
+  resources:
+  - pullrequests
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - git.galos.one
+  resources:
+  - pullrequests/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - git.galos.one
+  resources:
+  - pullrequests/status
+  verbs:
+  - get
+  - patch
+  - update
+{{- end }}

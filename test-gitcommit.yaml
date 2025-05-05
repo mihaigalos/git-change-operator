@@ -1,0 +1,19 @@
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: test-gitcommit
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/test.git"
+  branch: "main"
+  commitMessage: "Test commit from operator"
+  authSecretRef: "test-git-secret"
+  files:
+    - path: "test-file.yaml"
+      content: |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: test-config
+        data:
+          message: "Hello from git-change-operator!"

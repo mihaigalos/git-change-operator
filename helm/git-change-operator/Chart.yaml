@@ -1,0 +1,20 @@
+apiVersion: v2
+name: git-change-operator
+description: A Kubernetes operator for managing Git commits and pull requests
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - operator
+  - git
+  - github
+  - gitops
+  - kubernetes
+home: https://github.com/mihaigalos/git-change-operator
+sources:
+  - https://github.com/mihaigalos/git-change-operator
+maintainers:
+  - name: mihaigalos
+    url: https://github.com/mihaigalos
+annotations:
+  category: Developer Tools

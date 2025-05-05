@@ -1,0 +1,111 @@
+# Default values for git-change-operator
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Operator image configuration
+image:
+  repository: git-change-operator
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+# Image pull secrets for private registries
+imagePullSecrets: []
+
+# Name override for the chart
+nameOverride: ""
+fullnameOverride: ""
+
+# Operator deployment configuration
+replicaCount: 1
+
+# Service account configuration
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  # fsGroup: 2000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+# Node selector for pod assignment
+nodeSelector: {}
+
+# Tolerations for pod assignment
+tolerations: []
+
+# Affinity for pod assignment
+affinity: {}
+
+# RBAC configuration
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+
+# CRD installation
+# Note: CRDs in the crds/ directory are automatically installed by Helm
+# This setting is for informational purposes and future compatibility
+crds:
+  # Specifies whether CRDs should be installed
+  install: true
+
+# Metrics and monitoring
+metrics:
+  # Enable metrics endpoint
+  enabled: true
+  # Service for metrics
+  service:
+    type: ClusterIP
+    port: 8080
+    annotations: {}
+  # ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+    annotations: {}
+
+# Operator configuration
+operator:
+  # Log level (debug, info, warn, error)
+  logLevel: info
+  # Metrics bind address
+  metricsAddr: :8080
+  # Health probe bind address
+  probeAddr: :8081
+  # Leader election
+  leaderElect: true
+
+# Webhook configuration (if implemented in future)
+webhook:
+  enabled: false
+  port: 9443

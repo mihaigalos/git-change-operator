@@ -42,3 +42,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Corporate certificates (temporary files for build)
+zscaler.pem
+*.crt
+
+# Corporate configuration (local environment specific)
+corporate-config.env
