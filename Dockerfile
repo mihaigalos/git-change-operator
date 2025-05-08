@@ -32,9 +32,14 @@ COPY controllers/ controllers/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
 
-FROM gcr.io/distroless/static:nonroot
-WORKDIR /
+FROM alpine:3.18
+RUN echo "https://artifacts.rbi.tech/artifactory/alpinelinux-org-alpine-proxy/edge/main" > /etc/apk/repositories && \
+    echo "https://artifacts.rbi.tech/artifactory/alpinelinux-org-alpine-proxy/edge/community" >> /etc/apk/repositories && \
+    apk --no-cache add ca-certificates curl
+WORKDIR /root/
 COPY --from=builder /workspace/manager .
-USER 65532:65532
-
-ENTRYPOINT ["/manager"]
+RUN chmod +x ./manager
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY zscaler.pe[m] /usr/local/share/ca-certificates/zscaler.crt
+RUN update-ca-certificates 2>/dev/null || true
+ENTRYPOINT ["./manager"]

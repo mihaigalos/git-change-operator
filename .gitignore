@@ -49,3 +49,5 @@ zscaler.pem
 
 # Corporate configuration (local environment specific)
 corporate-config.env
+
+.kube/
