@@ -30,16 +30,16 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -o manager main.go && chmod +x manager
 
 FROM alpine:3.18
 RUN echo "https://artifacts.rbi.tech/artifactory/alpinelinux-org-alpine-proxy/edge/main" > /etc/apk/repositories && \
     echo "https://artifacts.rbi.tech/artifactory/alpinelinux-org-alpine-proxy/edge/community" >> /etc/apk/repositories && \
     apk --no-cache add ca-certificates curl
-WORKDIR /root/
-COPY --from=builder /workspace/manager .
-RUN chmod +x ./manager
+WORKDIR /
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY zscaler.pe[m] /usr/local/share/ca-certificates/zscaler.crt
 RUN update-ca-certificates 2>/dev/null || true
-ENTRYPOINT ["./manager"]
+COPY --from=builder /workspace/manager /manager
+RUN chmod +x /manager
+ENTRYPOINT ["/manager"]
