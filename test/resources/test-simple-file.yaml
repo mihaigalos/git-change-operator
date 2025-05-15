@@ -1,0 +1,13 @@
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: test-simple-file
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/test.git"
+  branch: "main"
+  commitMessage: "Simple file test from operator"
+  authSecretRef: "test-git-secret"
+  files:
+    - path: "simple-test.txt"
+      content: "This is a simple test file created by the git-change-operator."

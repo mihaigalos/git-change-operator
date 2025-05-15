@@ -1,0 +1,117 @@
+apiVersion: git.galos.one/v1
+kind: PullRequest
+metadata:
+  name: example-pr-dump-strategy
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/git-playground.git"
+  baseBranch: "main"
+  headBranch: "feature/secret-dump"
+  title: "Add secret dump via PR"
+  body: "This PR demonstrates dumping a Kubernetes Secret as YAML using the dump strategy."
+  authSecretRef: "git-token"
+  authSecretKey: "token"
+  resourceRefs:
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "dump"
+      path: "pr-examples/secret-dump.yaml"
+      writeMode: "overwrite"
+---
+apiVersion: git.galos.one/v1
+kind: PullRequest
+metadata:
+  name: example-pr-fields-strategy
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/git-playground.git"
+  baseBranch: "main"
+  headBranch: "feature/secret-fields"
+  title: "Add individual secret fields via PR"
+  body: "This PR demonstrates extracting individual Secret fields using the fields strategy."
+  authSecretRef: "git-token"
+  authSecretKey: "token"
+  resourceRefs:
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "fields"
+      path: "pr-examples/individual-fields"
+      writeMode: "overwrite"
+---
+apiVersion: git.galos.one/v1
+kind: PullRequest
+metadata:
+  name: example-pr-single-field
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/git-playground.git"
+  baseBranch: "main"
+  headBranch: "feature/alice-config"
+  title: "Add Alice's configuration"
+  body: "This PR demonstrates extracting a single field from a Secret."
+  authSecretRef: "git-token"
+  authSecretKey: "token"
+  resourceRefs:
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "single-field"
+      path: "configs/alice.txt"
+      writeMode: "overwrite"
+      fieldRef:
+        key: "alice"
+---
+apiVersion: git.galos.one/v1
+kind: PullRequest
+metadata:
+  name: example-pr-mixed-strategies
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/git-playground.git"
+  baseBranch: "main"
+  headBranch: "feature/mixed-secret-operations"
+  title: "Mixed secret operations"
+  body: |
+    This PR demonstrates multiple resource reference strategies in a single PullRequest:
+    1. Dump the entire secret as YAML
+    2. Extract the config.json field
+    3. Append the readme to a log file
+  authSecretRef: "git-token"
+  authSecretKey: "token"
+  resourceRefs:
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "dump"
+      path: "mixed-example/full-secret.yaml"
+      writeMode: "overwrite"
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "single-field"
+      path: "mixed-example/app-config.json"
+      writeMode: "overwrite"
+      fieldRef:
+        key: "config.json"
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "single-field"
+      path: "mixed-example/deployment.log"
+      writeMode: "append"
+      fieldRef:
+        key: "readme.txt"

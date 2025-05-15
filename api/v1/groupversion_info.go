@@ -1,3 +1,6 @@
+// Package v1 contains API Schema definitions for the git v1 API group
+// +kubebuilder:object:generate=true
+// +groupName=git.galos.one
 package v1
 
 import (

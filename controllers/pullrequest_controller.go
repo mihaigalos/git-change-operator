@@ -3,9 +3,9 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -17,11 +17,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/yaml"
 
 	gitv1 "github.com/mihaigalos/git-change-operator/api/v1"
 )
@@ -35,6 +38,7 @@ type PullRequestReconciler struct {
 //+kubebuilder:rbac:groups=git.galos.one,resources=pullrequests/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=git.galos.one,resources=pullrequests/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+//+kubebuilder:rbac:groups="*",resources="*",verbs=get;list;watch
 
 func (r *PullRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -80,6 +84,121 @@ func (r *PullRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, nil
 }
 
+func (r *PullRequestReconciler) fetchResource(ctx context.Context, resourceRef gitv1.ResourceRef, defaultNamespace string) (*unstructured.Unstructured, error) {
+	gv, err := schema.ParseGroupVersion(resourceRef.ApiVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	gvk := schema.GroupVersionKind{
+		Group:   gv.Group,
+		Version: gv.Version,
+		Kind:    resourceRef.Kind,
+	}
+
+	resource := &unstructured.Unstructured{}
+	resource.SetGroupVersionKind(gvk)
+
+	namespace := resourceRef.Namespace
+	if namespace == "" {
+		namespace = defaultNamespace
+	}
+
+	namespacedName := types.NamespacedName{
+		Name:      resourceRef.Name,
+		Namespace: namespace,
+	}
+
+	if err := r.Get(ctx, namespacedName, resource); err != nil {
+		return nil, err
+	}
+
+	return resource, nil
+}
+
+func (r *PullRequestReconciler) processResourceRef(ctx context.Context, resourceRef gitv1.ResourceRef, strategy gitv1.OutputStrategy, defaultNamespace string) (map[string][]byte, error) {
+	resource, err := r.fetchResource(ctx, resourceRef, defaultNamespace)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make(map[string][]byte)
+	basePath := strategy.Path
+	if basePath == "" {
+		basePath = fmt.Sprintf("%s-%s", strings.ToLower(resourceRef.Kind), resourceRef.Name)
+	}
+
+	switch strategy.Type {
+	case gitv1.OutputTypeDump:
+		yamlData, err := yaml.Marshal(resource.Object)
+		if err != nil {
+			return nil, err
+		}
+		fileName := fmt.Sprintf("%s.yaml", basePath)
+		files[fileName] = yamlData
+
+	case gitv1.OutputTypeFields:
+		if data, ok := resource.Object["data"].(map[string]interface{}); ok {
+			for key, value := range data {
+				fileName := filepath.Join(basePath, key)
+				var content []byte
+				if strValue, ok := value.(string); ok {
+					content = []byte(strValue)
+				} else {
+					yamlValue, err := yaml.Marshal(value)
+					if err != nil {
+						return nil, err
+					}
+					content = yamlValue
+				}
+				files[fileName] = content
+			}
+		} else {
+			return nil, fmt.Errorf("resource does not have a 'data' field suitable for fields extraction")
+		}
+
+	case gitv1.OutputTypeSingleField:
+		if strategy.FieldRef == nil {
+			return nil, fmt.Errorf("fieldRef is required for single-field output type")
+		}
+
+		var value interface{}
+		var exists bool
+
+		if data, ok := resource.Object["data"].(map[string]interface{}); ok {
+			value, exists = data[strategy.FieldRef.Key]
+		} else {
+			value, exists = resource.Object[strategy.FieldRef.Key]
+		}
+
+		if !exists {
+			return nil, fmt.Errorf("field %s not found in resource", strategy.FieldRef.Key)
+		}
+
+		fileName := basePath
+		if strategy.FieldRef.FileName != "" {
+			fileName = filepath.Join(filepath.Dir(basePath), strategy.FieldRef.FileName)
+		}
+
+		var content []byte
+		if strValue, ok := value.(string); ok {
+			content = []byte(strValue)
+		} else {
+			yamlValue, err := yaml.Marshal(value)
+			if err != nil {
+				return nil, err
+			}
+			content = yamlValue
+		}
+		files[fileName] = content
+
+	default:
+		return nil, fmt.Errorf("unsupported output type: %s", strategy.Type)
+	}
+
+	return files, nil
+}
+
 func (r *PullRequestReconciler) getAuthFromSecret(ctx context.Context, namespace, secretName, secretKey string) (*http.BasicAuth, string, error) {
 	var secret corev1.Secret
 	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &secret); err != nil {
@@ -110,7 +229,7 @@ func (r *PullRequestReconciler) getAuthFromSecret(ctx context.Context, namespace
 }
 
 func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1.PullRequest, auth *http.BasicAuth, token string) (int, string, error) {
-	tempDir, err := ioutil.TempDir("", "pull-request-")
+	tempDir, err := os.MkdirTemp("", "pull-request-")
 	if err != nil {
 		return 0, "", err
 	}
@@ -152,6 +271,7 @@ func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1
 		}
 	}
 
+	// Process regular files
 	for _, file := range pr.Spec.Files {
 		filePath := filepath.Join(tempDir, file.Path)
 		dir := filepath.Dir(filePath)
@@ -159,12 +279,44 @@ func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1
 			return 0, "", err
 		}
 
-		if err := ioutil.WriteFile(filePath, []byte(file.Content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(file.Content), 0644); err != nil {
 			return 0, "", err
 		}
 
 		if _, err := w.Add(file.Path); err != nil {
 			return 0, "", err
+		}
+	}
+
+	// Process resource references
+	for _, resourceRef := range pr.Spec.ResourceRefs {
+		files, err := r.processResourceRef(ctx, resourceRef, resourceRef.Strategy, pr.Namespace)
+		if err != nil {
+			return 0, "", fmt.Errorf("failed to process resource reference %s: %w", resourceRef.Name, err)
+		}
+
+		for relativePath, content := range files {
+			filePath := filepath.Join(tempDir, relativePath)
+			dir := filepath.Dir(filePath)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return 0, "", err
+			}
+
+			var finalContent []byte
+			if resourceRef.Strategy.WriteMode == gitv1.WriteModeAppend {
+				existingContent, _ := os.ReadFile(filePath)
+				finalContent = append(existingContent, content...)
+			} else {
+				finalContent = content
+			}
+
+			if err := os.WriteFile(filePath, finalContent, 0644); err != nil {
+				return 0, "", err
+			}
+
+			if _, err := w.Add(relativePath); err != nil {
+				return 0, "", err
+			}
 		}
 	}
 

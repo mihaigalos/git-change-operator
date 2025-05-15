@@ -1,0 +1,88 @@
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: example-dump-strategy
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/git-playground.git"
+  branch: "main"
+  commitMessage: "Dump entire secret as YAML"
+  authSecretRef: "git-token"
+  authSecretKey: "token"
+  resourceRefs:
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "dump"
+      path: "secrets/test-commitme-dump"
+      writeMode: "overwrite"
+---
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: example-fields-strategy
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/git-playground.git"
+  branch: "main"
+  commitMessage: "Extract all secret fields as separate files"
+  authSecretRef: "git-token"
+  authSecretKey: "token"
+  resourceRefs:
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "fields"
+      path: "secrets/individual-fields"
+      writeMode: "overwrite"
+---
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: example-single-field-strategy
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/git-playground.git"
+  branch: "main"
+  commitMessage: "Extract single field 'alice' from secret"
+  authSecretRef: "git-token"
+  authSecretKey: "token"
+  resourceRefs:
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "single-field"
+      path: "secrets/alice-password"
+      writeMode: "overwrite"
+      fieldRef:
+        key: "alice"
+        fileName: "alice.txt"
+---
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: example-append-mode
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/git-playground.git"
+  branch: "main"
+  commitMessage: "Append readme to existing file"
+  authSecretRef: "git-token"
+  authSecretKey: "token"
+  resourceRefs:
+  - apiVersion: "v1"
+    kind: "Secret"
+    name: "test-commitme"
+    namespace: "default"
+    strategy:
+      type: "single-field"
+      path: "logs/activity.log"
+      writeMode: "append"
+      fieldRef:
+        key: "readme.txt"

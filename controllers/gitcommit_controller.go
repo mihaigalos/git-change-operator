@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -15,11 +16,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/yaml"
 
 	gitv1 "github.com/mihaigalos/git-change-operator/api/v1"
 )
@@ -165,6 +169,44 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 		}
 	}
 
+	// Process resource references
+	for _, resourceRef := range gitCommit.Spec.ResourceRefs {
+		resourceFiles, err := r.processResourceRef(ctx, resourceRef, gitCommit.Namespace)
+		if err != nil {
+			return "", fmt.Errorf("failed to process resource reference %s/%s: %w", resourceRef.Kind, resourceRef.Name, err)
+		}
+
+		for _, file := range resourceFiles {
+			filePath := filepath.Join(tempDir, file.Path)
+			dir := filepath.Dir(filePath)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return "", err
+			}
+
+			// Handle write modes
+			var content []byte
+			if resourceRef.Strategy.WriteMode == gitv1.WriteModeAppend {
+				// Read existing file if it exists
+				if existingContent, err := ioutil.ReadFile(filePath); err == nil {
+					content = append(existingContent, []byte("\n"+file.Content)...)
+				} else {
+					content = []byte(file.Content)
+				}
+			} else {
+				// Default to overwrite
+				content = []byte(file.Content)
+			}
+
+			if err := ioutil.WriteFile(filePath, content, 0644); err != nil {
+				return "", err
+			}
+
+			if _, err := w.Add(file.Path); err != nil {
+				return "", err
+			}
+		}
+	}
+
 	commit, err := w.Commit(gitCommit.Spec.CommitMessage, &git.CommitOptions{
 		Author: &object.Signature{
 			Name:  "Git Change Operator",
@@ -193,6 +235,108 @@ func (r *GitCommitReconciler) updateStatus(ctx context.Context, gitCommit *gitv1
 	gitCommit.Status.LastSync = &now
 
 	return r.Status().Update(ctx, gitCommit)
+}
+
+func (r *GitCommitReconciler) fetchResource(ctx context.Context, resourceRef gitv1.ResourceRef, namespace string) (*unstructured.Unstructured, error) {
+	gvk := schema.GroupVersionKind{
+		Group:   "",
+		Version: "v1",
+		Kind:    resourceRef.Kind,
+	}
+
+	if strings.Contains(resourceRef.ApiVersion, "/") {
+		parts := strings.SplitN(resourceRef.ApiVersion, "/", 2)
+		gvk.Group = parts[0]
+		gvk.Version = parts[1]
+	} else {
+		gvk.Version = resourceRef.ApiVersion
+	}
+
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(gvk)
+
+	nsName := types.NamespacedName{
+		Name:      resourceRef.Name,
+		Namespace: resourceRef.Namespace,
+	}
+	if resourceRef.Namespace == "" {
+		nsName.Namespace = namespace
+	}
+
+	err := r.Get(ctx, nsName, obj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch resource %s/%s: %w", resourceRef.Kind, resourceRef.Name, err)
+	}
+
+	return obj, nil
+}
+
+func (r *GitCommitReconciler) processResourceRef(ctx context.Context, resourceRef gitv1.ResourceRef, namespace string) ([]gitv1.File, error) {
+	obj, err := r.fetchResource(ctx, resourceRef, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []gitv1.File
+
+	switch resourceRef.Strategy.Type {
+	case gitv1.OutputTypeDump:
+		content, err := yaml.Marshal(obj)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal resource to YAML: %w", err)
+		}
+		files = append(files, gitv1.File{
+			Path:    resourceRef.Strategy.Path,
+			Content: string(content),
+		})
+
+	case gitv1.OutputTypeFields:
+		data, found, err := unstructured.NestedMap(obj.Object, "data")
+		if !found || err != nil {
+			return nil, fmt.Errorf("resource does not have data fields or failed to extract: %w", err)
+		}
+
+		for key, value := range data {
+			fileName := fmt.Sprintf("%s/%s", strings.TrimSuffix(resourceRef.Strategy.Path, "/"), key)
+			content := fmt.Sprintf("%v", value)
+			files = append(files, gitv1.File{
+				Path:    fileName,
+				Content: content,
+			})
+		}
+
+	case gitv1.OutputTypeSingleField:
+		if resourceRef.Strategy.FieldRef == nil {
+			return nil, fmt.Errorf("fieldRef is required for single-field strategy")
+		}
+
+		data, found, err := unstructured.NestedMap(obj.Object, "data")
+		if !found || err != nil {
+			return nil, fmt.Errorf("resource does not have data fields: %w", err)
+		}
+
+		value, exists := data[resourceRef.Strategy.FieldRef.Key]
+		if !exists {
+			return nil, fmt.Errorf("field %s not found in resource data", resourceRef.Strategy.FieldRef.Key)
+		}
+
+		fileName := resourceRef.Strategy.FieldRef.FileName
+		if fileName == "" {
+			fileName = resourceRef.Strategy.FieldRef.Key
+		}
+		filePath := fmt.Sprintf("%s/%s", strings.TrimSuffix(resourceRef.Strategy.Path, "/"), fileName)
+
+		content := fmt.Sprintf("%v", value)
+		files = append(files, gitv1.File{
+			Path:    filePath,
+			Content: content,
+		})
+
+	default:
+		return nil, fmt.Errorf("unsupported output strategy type: %s", resourceRef.Strategy.Type)
+	}
+
+	return files, nil
 }
 
 func (r *GitCommitReconciler) SetupWithManager(mgr ctrl.Manager) error {

@@ -85,4 +85,12 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - "*"
+  resources:
+  - "*"
+  verbs:
+  - get
+  - list
+  - watch
 {{- end }}

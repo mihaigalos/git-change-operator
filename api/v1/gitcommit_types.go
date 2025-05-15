@@ -5,18 +5,54 @@ import (
 )
 
 type GitCommitSpec struct {
-	Repository    string `json:"repository"`
-	Branch        string `json:"branch"`
-	Files         []File `json:"files"`
-	CommitMessage string `json:"commitMessage"`
-	AuthSecretRef string `json:"authSecretRef"`
-	AuthSecretKey string `json:"authSecretKey,omitempty"`
+	Repository    string        `json:"repository"`
+	Branch        string        `json:"branch"`
+	Files         []File        `json:"files,omitempty"`
+	ResourceRefs  []ResourceRef `json:"resourceRefs,omitempty"`
+	CommitMessage string        `json:"commitMessage"`
+	AuthSecretRef string        `json:"authSecretRef"`
+	AuthSecretKey string        `json:"authSecretKey,omitempty"`
 }
 
 type File struct {
 	Path    string `json:"path"`
 	Content string `json:"content"`
 }
+
+type ResourceRef struct {
+	ApiVersion string         `json:"apiVersion"`
+	Kind       string         `json:"kind"`
+	Name       string         `json:"name"`
+	Namespace  string         `json:"namespace,omitempty"`
+	Strategy   OutputStrategy `json:"strategy"`
+}
+
+type OutputStrategy struct {
+	Type      OutputType `json:"type"`
+	Path      string     `json:"path"`
+	WriteMode WriteMode  `json:"writeMode,omitempty"`
+	FieldRef  *FieldRef  `json:"fieldRef,omitempty"`
+}
+
+type FieldRef struct {
+	Key      string `json:"key"`
+	FileName string `json:"fileName,omitempty"`
+}
+
+type OutputType string
+
+const (
+	OutputTypeDump        OutputType = "dump"
+	OutputTypeFields      OutputType = "fields"
+	OutputTypeSingleField OutputType = "single-field"
+)
+
+type WriteMode string
+
+const (
+	WriteModeOverwrite WriteMode = "overwrite"
+	WriteModeAppend    WriteMode = "append"
+)
 
 type GitCommitStatus struct {
 	CommitSHA string         `json:"commitSHA,omitempty"`

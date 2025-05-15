@@ -1,0 +1,18 @@
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: test-basic-gitcommit
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/git-playground.git"
+  branch: "main"
+  commitMessage: "Test basic GitCommit without resource refs"
+  authSecretRef: "git-token"
+  authSecretKey: "token"
+  files:
+  - path: "test/basic-test.txt"
+    content: |
+      This is a test of basic GitCommit functionality
+      without using resource references.
+      
+      Created at: 2025-09-19T23:05:00Z

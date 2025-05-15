@@ -10,11 +10,12 @@ type PullRequestSpec struct {
 	HeadBranch string `json:"headBranch"`
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	Title         string `json:"title"`
-	Body          string `json:"body,omitempty"`
-	Files         []File `json:"files"`
-	AuthSecretRef string `json:"authSecretRef"`
-	AuthSecretKey string `json:"authSecretKey,omitempty"`
+	Title         string        `json:"title"`
+	Body          string        `json:"body,omitempty"`
+	Files         []File        `json:"files,omitempty"`
+	ResourceRefs  []ResourceRef `json:"resourceRefs,omitempty"`
+	AuthSecretRef string        `json:"authSecretRef"`
+	AuthSecretKey string        `json:"authSecretKey,omitempty"`
 }
 
 type PullRequestStatus struct {

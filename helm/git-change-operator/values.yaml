@@ -103,7 +103,7 @@ operator:
   # Health probe bind address
   probeAddr: :8081
   # Leader election
-  leaderElect: true
+  leaderElect: false
 
 # Webhook configuration (if implemented in future)
 webhook:

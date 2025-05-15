@@ -4,30 +4,30 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: gitcommits.
+  name: pullrequests.git.galos.one
 spec:
-  group: ""
+  group: git.galos.one
   names:
-    kind: GitCommit
-    listKind: GitCommitList
-    plural: gitcommits
-    singular: gitcommit
+    kind: PullRequest
+    listKind: PullRequestList
+    plural: pullrequests
+    singular: pullrequest
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - jsonPath: .spec.repository
       name: Repository
       type: string
-    - jsonPath: .spec.branch
-      name: Branch
+    - jsonPath: .spec.title
+      name: Title
       type: string
     - jsonPath: .status.phase
       name: Phase
       type: string
-    - jsonPath: .status.commitSHA
-      name: CommitSHA
-      type: string
-    name: ""
+    - jsonPath: .status.pullRequestNumber
+      name: PR Number
+      type: integer
+    name: v1
     schema:
       openAPIV3Schema:
         properties:
@@ -54,9 +54,9 @@ spec:
                 type: string
               authSecretRef:
                 type: string
-              branch:
+              baseBranch:
                 type: string
-              commitMessage:
+              body:
                 type: string
               files:
                 items:
@@ -70,25 +70,71 @@ spec:
                   - path
                   type: object
                 type: array
+              headBranch:
+                type: string
               repository:
+                type: string
+              resourceRefs:
+                items:
+                  properties:
+                    apiVersion:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    strategy:
+                      properties:
+                        fieldRef:
+                          properties:
+                            fileName:
+                              type: string
+                            key:
+                              type: string
+                          required:
+                          - key
+                          type: object
+                        path:
+                          type: string
+                        type:
+                          type: string
+                        writeMode:
+                          type: string
+                      required:
+                      - path
+                      - type
+                      type: object
+                  required:
+                  - apiVersion
+                  - kind
+                  - name
+                  - strategy
+                  type: object
+                type: array
+              title:
+                minLength: 1
                 type: string
             required:
             - authSecretRef
-            - branch
-            - commitMessage
-            - files
+            - baseBranch
+            - headBranch
             - repository
+            - title
             type: object
           status:
             properties:
-              commitSHA:
-                type: string
               lastSync:
                 format: date-time
                 type: string
               message:
                 type: string
               phase:
+                type: string
+              pullRequestNumber:
+                type: integer
+              pullRequestURL:
                 type: string
             type: object
         type: object

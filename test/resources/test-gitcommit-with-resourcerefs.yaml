@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-source-config
+  namespace: default
+data:
+  app: "my-application"
+  env: "production"
+  replicas: "3"
+  debug: "false"
+---
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: test-gitcommit-with-refs
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/test.git"
+  branch: "main"
+  commitMessage: "Test commit with resource references"
+  authSecretRef: "test-git-secret"
+  resourceRefs:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: test-source-config
+      namespace: default
+      strategy:
+        type: dump
+        path: "configs/source-config-dump.yaml"
+        writeMode: overwrite
+    - apiVersion: v1
+      kind: ConfigMap
+      name: test-source-config
+      namespace: default
+      strategy:
+        type: fields
+        path: "configs/source-config-fields.yaml"
+        writeMode: overwrite
+    - apiVersion: v1
+      kind: ConfigMap
+      name: test-source-config
+      namespace: default
+      strategy:
+        type: single-field
+        path: "configs/app-name.txt"
+        writeMode: overwrite
+        fieldRef:
+          key: app
+          fileName: "app-name.txt"
