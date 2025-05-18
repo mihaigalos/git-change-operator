@@ -320,13 +320,21 @@ func (r *GitCommitReconciler) processResourceRef(ctx context.Context, resourceRe
 			return nil, fmt.Errorf("field %s not found in resource data", resourceRef.Strategy.FieldRef.Key)
 		}
 
-		fileName := resourceRef.Strategy.FieldRef.FileName
-		if fileName == "" {
-			fileName = resourceRef.Strategy.FieldRef.Key
-		}
-		filePath := fmt.Sprintf("%s/%s", strings.TrimSuffix(resourceRef.Strategy.Path, "/"), fileName)
-
+		var filePath string
 		content := fmt.Sprintf("%v", value)
+		
+		// For append mode, write directly to the path file
+		if resourceRef.Strategy.WriteMode == gitv1.WriteModeAppend {
+			filePath = resourceRef.Strategy.Path
+		} else {
+			// For overwrite mode, create path/filename structure
+			fileName := resourceRef.Strategy.FieldRef.FileName
+			if fileName == "" {
+				fileName = resourceRef.Strategy.FieldRef.Key
+			}
+			filePath = fmt.Sprintf("%s/%s", strings.TrimSuffix(resourceRef.Strategy.Path, "/"), fileName)
+		}
+
 		files = append(files, gitv1.File{
 			Path:    filePath,
 			Content: content,
