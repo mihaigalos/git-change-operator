@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-mixed-secret
+  namespace: default
+type: Opaque
+stringData:
+  database_url: "postgresql://user:pass@localhost:5432/db"
+  api_key: "sk-1234567890abcdef"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-mixed-config
+  namespace: default
+data:
+  log_level: "INFO"
+  max_connections: "100"
+  feature_flags: "feature1,feature2,feature3"
+---
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: test-gitcommit-mixed
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/test.git"
+  branch: "main"
+  commitMessage: "Mixed test: files + resourceRefs with different write modes"
+  authSecretRef: "test-git-secret"
+  files:
+    - path: "app/settings.ini"
+      content: |
+        [application]
+        name=git-change-operator
+        version=1.0.0
+        
+        [logging]
+        # Log level will be appended from ConfigMap
+    - path: "deployment/base-config.yaml"
+      content: |
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: my-app
+        spec:
+          replicas: 1
+  resourceRefs:
+    # Dump full Secret as YAML
+    - apiVersion: v1
+      kind: Secret
+      name: test-mixed-secret
+      namespace: default
+      strategy:
+        type: dump
+        path: "secrets/database-secret.yaml"
+        writeMode: overwrite
+    # Extract individual config fields
+    - apiVersion: v1
+      kind: ConfigMap
+      name: test-mixed-config
+      namespace: default
+      strategy:
+        type: fields
+        path: "config/fields"
+        writeMode: overwrite
+    # Append log level to settings file
+    - apiVersion: v1
+      kind: ConfigMap
+      name: test-mixed-config
+      namespace: default
+      strategy:
+        type: single-field
+        path: "app/settings.ini"
+        writeMode: append
+        fieldRef:
+          key: log_level
+          fileName: "log_level.ini"

@@ -322,7 +322,7 @@ func (r *GitCommitReconciler) processResourceRef(ctx context.Context, resourceRe
 
 		var filePath string
 		content := fmt.Sprintf("%v", value)
-		
+
 		// For append mode, write directly to the path file
 		if resourceRef.Strategy.WriteMode == gitv1.WriteModeAppend {
 			filePath = resourceRef.Strategy.Path

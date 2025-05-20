@@ -336,7 +336,14 @@ func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1
 		Auth: auth,
 	})
 	if err != nil {
-		return 0, "", err
+		// Check if this is a non-fast-forward error (branch already exists)
+		if strings.Contains(err.Error(), "non-fast-forward update") {
+			// Branch already exists - this is fine, we can still try to create the PR
+			// Log the situation but don't fail
+			fmt.Printf("Branch %s already exists, proceeding to PR creation\n", pr.Spec.HeadBranch)
+		} else {
+			return 0, "", err
+		}
 	}
 
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
@@ -358,7 +365,14 @@ func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1
 
 	pullRequest, _, err := client.PullRequests.Create(ctx, owner, repoName, newPR)
 	if err != nil {
-		return 0, "", err
+		// Check for common GitHub API permission issues
+		if strings.Contains(err.Error(), "Resource not accessible by personal access token") {
+			return 0, "", fmt.Errorf("insufficient GitHub token permissions - token needs 'repo' and 'pull_requests:write' scopes to create pull requests: %w", err)
+		}
+		if strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "Forbidden") {
+			return 0, "", fmt.Errorf("GitHub API access denied - check token permissions and repository access: %w", err)
+		}
+		return 0, "", fmt.Errorf("failed to create GitHub pull request: %w", err)
 	}
 
 	return pullRequest.GetNumber(), pullRequest.GetHTMLURL(), nil

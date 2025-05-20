@@ -1,0 +1,44 @@
+apiVersion: git.galos.one/v1
+kind: GitCommit
+metadata:
+  name: test-gitcommit-advanced
+  namespace: default
+spec:
+  repository: "https://github.com/mihaigalos/test.git"
+  branch: "feature/test-branch"
+  commitMessage: "Advanced test: custom branch + multiple files + nested directories"
+  authSecretRef: "test-git-secret"
+  authSecretKey: "token"
+  files:
+    - path: "docs/README.md"
+      content: |
+        # Advanced GitCommit Test
+        
+        This test verifies:
+        - Custom branch creation/usage
+        - Multiple file creation
+        - Nested directory structures
+        - Complex file content
+    - path: "config/app.yaml"
+      content: |
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: app-config
+        data:
+          environment: test
+          debug: "true"
+    - path: "scripts/deploy.sh"
+      content: |
+        #!/bin/bash
+        echo "Deployment script for testing"
+        echo "Branch: feature/test-branch"
+        exit 0
+    - path: "data/values.json"
+      content: |
+        {
+          "testData": {
+            "enabled": true,
+            "values": [1, 2, 3, 4, 5]
+          }
+        }

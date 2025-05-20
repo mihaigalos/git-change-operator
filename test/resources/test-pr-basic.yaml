@@ -6,7 +6,7 @@ metadata:
 spec:
   repository: "https://github.com/mihaigalos/test.git"
   baseBranch: "main"
-  headBranch: "feature/test-pr"
+  headBranch: "feature/test-pr-basic"
   title: "Test PR from operator"
   body: "This is a test pull request created by the git-change-operator"
   authSecretRef: "test-git-secret"
