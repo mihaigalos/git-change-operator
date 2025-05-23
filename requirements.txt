@@ -1,0 +1,17 @@
+# Documentation Requirements
+# Install with: pip install -r requirements.txt
+
+# Core MkDocs
+mkdocs>=1.5.0
+
+# Material theme
+mkdocs-material>=9.4.0
+
+# Plugins
+mkdocs-minify-plugin>=0.7.0
+
+# Extensions for enhanced functionality
+pymdown-extensions>=10.0.0
+
+# Optional: for serving docs locally
+mkdocs-serve>=1.0.0

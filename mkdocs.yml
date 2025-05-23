@@ -1,0 +1,170 @@
+site_name: Git Change Operator Documentation
+site_description: A Kubernetes operator for automating git commits and pull requests based on cluster resources
+site_author: Mihai Galos
+site_url: https://mihaigalos.github.io/git-change-operator/
+
+repo_name: mihaigalos/git-change-operator
+repo_url: https://github.com/mihaigalos/git-change-operator
+edit_uri: edit/main/docs/
+
+copyright: Copyright &copy; 2025 Mihai Galos
+
+theme:
+  name: material
+  language: en
+  
+
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  
+  font:
+    text: Roboto
+    code: Roboto Mono
+  
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+  
+  features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - toc.integrate
+    - search.highlight
+    - search.share
+    - search.suggest
+    - content.action.edit
+    - content.action.view
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - content.tabs.link
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      normalize_issue_symbols: true
+      repo_url_shorthand: true
+      user: mihaigalos
+      repo: git-change-operator
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      auto_append:
+        - includes/mkdocs.md
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mihaigalos
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/r/mihaigalos/git-change-operator
+  
+  version:
+    provider: mike
+
+nav:
+  - Home: index.md
+  
+  - User Guide:
+    - user-guide/index.md
+    - Installation: user-guide/installation.md
+    - Quick Start: user-guide/quick-start.md
+    - Configuration: user-guide/configuration.md
+    - GitCommit Resources: user-guide/gitcommit.md
+    - PullRequest Resources: user-guide/pullrequest.md
+    - Resource References: user-guide/resource-references.md
+    - Authentication: user-guide/authentication.md
+    
+  - Reference:
+    - reference/index.md
+    - CRD Specification: reference/crd-spec.md
+    - API Reference: reference/api.md
+    - Resource Reference Strategies: reference/resource-reference-strategies.md
+    - Write Modes: reference/write-modes.md
+    - Error Handling: reference/error-handling.md
+    
+  - Examples:
+    - examples/index.md
+    - Basic GitCommit: examples/basic-gitcommit.md
+    - GitCommit with Resource References: examples/gitcommit-resourcerefs.md
+    - PullRequest Creation: examples/pullrequest.md
+    - Advanced Scenarios: examples/advanced.md
+    - Corporate Environment Setup: examples/corporate-setup.md
+    
+  - Development:
+    - development/index.md
+    - Architecture: development/architecture.md
+    - Contributing: development/contributing.md
+    - Building from Source: development/building.md
+    - Testing: development/testing.md
+    - Release Process: development/releases.md
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

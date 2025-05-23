@@ -117,4 +117,27 @@ helm-uninstall: ## Uninstall the operator using Helm
 
 helm-deploy: docker-build docker-push helm-package helm-install ## Build, push, package and deploy using Helm
 
-.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy
+##@ Documentation
+docs-venv: ## Create Python virtual environment for documentation
+	python3 -m venv docs/.venv
+	@echo "Virtual environment created at docs/.venv"
+	@echo "To activate manually: source docs/.venv/bin/activate"
+
+docs-deps: docs-venv ## Install documentation dependencies
+	docs/.venv/bin/pip install --upgrade pip
+	docs/.venv/bin/pip install -r docs/mkdocs/requirements.txt
+
+docs-serve: docs-deps ## Serve documentation locally for development
+	docs/.venv/bin/mkdocs serve
+
+docs-build: docs-deps ## Build documentation for production
+	docs/.venv/bin/mkdocs build
+
+docs-deploy: docs-deps ## Deploy documentation to GitHub Pages
+	docs/.venv/bin/mkdocs gh-deploy --force
+
+docs-clean: ## Clean built documentation and virtual environment
+	rm -rf site/
+	rm -rf docs/.venv/
+
+.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy docs-venv docs-deps docs-serve docs-build docs-deploy docs-clean

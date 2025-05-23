@@ -48,6 +48,10 @@ zscaler.pem
 *.crt
 
 # Corporate configuration (local environment specific)
+
+# Documentation
+site/
+docs/.venv/
 corporate-config.env
 
 .kube/
