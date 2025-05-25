@@ -1,4 +1,4 @@
-site_name: Git Change Operator Documentation
+site_name: Git Change Operator
 site_description: A Kubernetes operator for automating git commits and pull requests based on cluster resources
 site_author: Mihai Galos
 site_url: https://mihaigalos.github.io/git-change-operator/

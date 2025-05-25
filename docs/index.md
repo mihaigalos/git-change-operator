@@ -1,10 +1,10 @@
 # Git Change Operator
 
-A powerful Kubernetes operator that enables automated Git operations directly from within your cluster. Seamlessly commit files and reference existing Kubernetes resources with flexible output strategies.
+A Kubernetes operator that enables automated Git operations directly from within a cluster. Seamlessly commit files and reference existing Kubernetes resources with flexible output strategies.
 
 ## Overview
 
-The Git Change Operator bridges the gap between your Kubernetes cluster state and Git repositories, enabling GitOps workflows where cluster resources can automatically update Git repositories. Whether you need to commit static files, export ConfigMaps, or create pull requests from resource changes, this operator provides the tools you need.
+The Git Change Operator bridges the gap between your Kubernetes cluster state and Git repositories to automatically update those repo with direct commits or pull requests. Whether you need to commit static files, export ConfigMaps, or create pull requests from resource changes, this operator provides the tools you need.
 
 ## Key Features
 
@@ -31,14 +31,36 @@ The Git Change Operator bridges the gap between your Kubernetes cluster state an
 
 ```mermaid
 graph TB
-    A[GitCommit/PullRequest CRD] --> B[Git Change Operator]
-    B --> C[Git Repository]
-    B --> D[Kubernetes Resources]
-    D --> E[ConfigMaps]
-    D --> F[Secrets]
-    D --> G[Custom Resources]
-    B --> H[GitHub API]
-    H --> I[Pull Requests]
+    %% User creates resources
+    User["👤 User"] -->|creates| A["📄 GitCommit/PullRequest CR"]
+    
+    %% Operator watches and processes
+    B["⚙️ Git Change Operator"] -->|watches| A
+    
+    %% Operator reads from K8s Cluster
+    B -->|reads data from| D["☸️ K8s Cluster"]
+    D -->|contains| E["📦 ConfigMaps"]
+    D -->|contains| F["🔐 Secrets"] 
+    
+    %% Operator authenticates and writes to Git
+    B -->|clones/pulls| C["📚 Git Repository"]
+    B -->|commits & pushes| C
+    B -->|creates PR| G["🐙 GitHub"]
+    
+    %% Repository states
+    
+    %% Styling
+    classDef userAction fill:#e1f5fe
+    classDef operator fill:#f3e5f5
+    classDef k8sResource fill:#e8f5e8
+    classDef gitResource fill:#fff3e0
+    classDef github fill:#f6f8fa
+    
+    class User userAction
+    class B operator
+    class D,E,F k8sResource
+    class C gitResource
+    class G github
 ```
 
 ## Use Cases
