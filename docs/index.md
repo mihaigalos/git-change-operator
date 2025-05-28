@@ -8,22 +8,22 @@ The Git Change Operator bridges the gap between your Kubernetes cluster state an
 
 ## Key Features
 
-### 🔄 **Automated Git Operations**
+### **Automated Git Operations**
 - **Direct Commits**: Push files directly to Git repositories
 - **Pull Requests**: Create GitHub pull requests with automated branch management
 - **Secure Authentication**: Use Kubernetes Secrets for Git authentication
 
-### 📦 **Resource References**
+### **Resource References**
 - **Any Kubernetes Resource**: Reference Secrets, ConfigMaps, or any custom resources
 - **Flexible Output Strategies**: Choose how to extract and format resource data
 - **Smart Field Extraction**: Extract specific fields or entire resources
 
-### 🎯 **Output Strategies**
+### **Output Strategies**
 - **Dump Strategy**: Export entire resources as YAML files
 - **Fields Strategy**: Extract all data fields as separate files
 - **Single-Field Strategy**: Extract specific fields with custom naming and paths
 
-### ✏️ **Write Modes**
+### **Write Modes**
 - **Overwrite Mode**: Replace existing file content (default)
 - **Append Mode**: Add content to existing files
 
@@ -31,6 +31,8 @@ The Git Change Operator bridges the gap between your Kubernetes cluster state an
 
 ```mermaid
 graph TB
+    %%{init: {"theme": "default", "themeVariables": { "background": "#ffffff"}}}%%
+
     %% User creates resources
     User["👤 User"] -->|creates| A["📄 GitCommit/PullRequest CR"]
     
