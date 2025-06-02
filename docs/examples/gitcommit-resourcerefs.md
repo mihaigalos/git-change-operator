@@ -518,4 +518,3 @@ kubectl auth can-i get secrets -n production \
 
 - [PullRequest Creation](pullrequest.md) - Create pull requests with resource references
 - [Advanced Scenarios](advanced.md) - Complex multi-cluster setups
-- [Corporate Environment Setup](corporate-setup.md) - Enterprise deployment patterns

@@ -67,11 +67,11 @@ Create a Kubernetes Secret with your Git credentials:
       --from-literal=password=your-git-password
     ```
 
-!!! info "Token Permissions"
-    For GitHub, ensure your personal access token has the following scopes:
-    
-    - `repo` (for repository access)
-    - `pull_requests:write` (for creating pull requests)
+>[!TIP]
+> For GitHub, ensure your personal access token has the following scopes:
+> 
+> - `repo` (for repository access)
+> - `pull_requests:write` (for creating pull requests)
 
 ## Your First GitCommit
 

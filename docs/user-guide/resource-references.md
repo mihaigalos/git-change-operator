@@ -231,8 +231,9 @@ spec:
 
 ### Security Considerations
 
-!!! warning "Sensitive Data"
-    Be careful when exporting Secrets or resources containing sensitive information. Ensure your Git repository has appropriate access controls.
+> [!WARNING]  
+> Be careful when exporting Secrets or resources containing sensitive information. Ensure your Git repository has appropriate access controls.
+
 
 ### Path Organization
 

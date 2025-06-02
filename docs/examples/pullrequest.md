@@ -521,5 +521,4 @@ kubectl delete pullrequest config-update-pr
 ## Next Steps
 
 - [Advanced Scenarios](advanced.md) - Multi-cluster and complex workflows
-- [Corporate Environment Setup](corporate-setup.md) - Enterprise patterns and compliance
 - [Error Handling Reference](../reference/error-handling.md) - Troubleshooting guide

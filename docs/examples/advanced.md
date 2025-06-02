@@ -753,6 +753,5 @@ spec:
 
 ## Next Steps
 
-- [Corporate Environment Setup](corporate-setup.md) - Enterprise deployment patterns
 - [Development Guide](../development/index.md) - Contributing and customization
 - [Error Handling Reference](../reference/error-handling.md) - Troubleshooting production issues

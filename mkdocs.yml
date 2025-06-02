@@ -1,7 +1,7 @@
 site_name: Git Change Operator
 site_description: A Kubernetes operator for automating git commits and pull requests based on cluster resources
 site_author: Mihai Galos
-site_url: https://mihaigalos.github.io/git-change-operator/
+# site_url: https://mihaigalos.github.io/git-change-operator/  # Comment out for local dev
 
 repo_name: mihaigalos/git-change-operator
 repo_url: https://github.com/mihaigalos/git-change-operator
@@ -71,6 +71,7 @@ markdown_extensions:
   - attr_list
   - def_list
   - footnotes
+  - markdown_gfm_admonition
   - md_in_html
   - toc:
       permalink: true
@@ -151,12 +152,10 @@ nav:
     - GitCommit with Resource References: examples/gitcommit-resourcerefs.md
     - PullRequest Creation: examples/pullrequest.md
     - Advanced Scenarios: examples/advanced.md
-    - Corporate Environment Setup: examples/corporate-setup.md
     
   - Development:
     - development/index.md
     - Architecture: development/architecture.md
-    - Contributing: development/contributing.md
     - Building from Source: development/building.md
     - Testing: development/testing.md
     - Release Process: development/releases.md
