@@ -10,25 +10,23 @@ Synchronize configurations across multiple Kubernetes clusters using a centraliz
 
 ```mermaid
 graph TB
-    subgraph "Production Cluster"
-        P1[Git Change Operator] -->|commits| CR[Central Config Repo]
-        P1 -->|reads| PC[Production ConfigMaps]
+    subgraph "ClusterA"
+        P1[Git Change Operator]
+        P1 -->|reads| PC[k8s resources]
     end
     
-    subgraph "Staging Cluster" 
-        S1[Git Change Operator] -->|commits| CR
-        S1 -->|reads| SC[Staging ConfigMaps]
+    subgraph "ClusterB" 
+        S1[Git Change Operator]
+        S1 -->|reads| SC[k8s resources]
     end
     
-    subgraph "Development Cluster"
-        D1[Git Change Operator] -->|commits| CR
-        D1 -->|reads| DC[Dev ConfigMaps]
-    end
+    CR[Central Repo]
     
-    CR -->|GitOps| AG[ArgoCD/Flux]
-    AG -->|deploys| P1
-    AG -->|deploys| S1
-    AG -->|deploys| D1
+    P1 -->|commits| CR
+    S1 -->|commits| CR
+    CR -->|reads via GitOps| AG[ArgoCD/Flux]
+    AG -->|deploys| PC
+    AG -->|deploys| SC
 ```
 
 ### Central Configuration Repository Structure
