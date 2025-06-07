@@ -645,48 +645,6 @@ spec:
     tokenKey: token
 ```
 
-### GitLab Self-Hosted
-
-```yaml
-apiVersion: git.galos.one/v1
-kind: PullRequest
-metadata:
-  name: gitlab-self-hosted-mr
-spec:
-  repository: "https://gitlab.mycompany.com/project/repo.git"
-  
-  # GitLab self-hosted configuration
-  provider: "gitlab"
-  providerConfig:
-    baseURL: "https://gitlab.mycompany.com/api/v4"
-  
-  credentials:
-    secretName: gitlab-self-hosted-token
-    tokenKey: token
-```
-
-### Bitbucket Server
-
-```yaml
-apiVersion: git.galos.one/v1
-kind: GitCommit
-metadata:
-  name: bitbucket-server-commit
-spec:
-  repository: "https://bitbucket.mycompany.com/scm/proj/repo.git"
-  
-  # Bitbucket Server configuration
-  provider: "bitbucket"
-  providerConfig:
-    baseURL: "https://bitbucket.mycompany.com"
-    apiVersion: "1.0"
-  
-  credentials:
-    secretName: bitbucket-server-creds
-    usernameKey: username
-    passwordKey: password
-```
-
 ## Troubleshooting Authentication
 
 ### Common Issues

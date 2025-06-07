@@ -40,7 +40,6 @@ The `PullRequest` custom resource creates GitHub pull requests automatically wit
 
 - **[Getting Started](../user-guide/index.md)** - Installation and basic setup
 - **[Examples](../examples/index.md)** - Practical usage examples
-- **[Development](../development/index.md)** - Contributing and development guide
 
 ## API Versions
 

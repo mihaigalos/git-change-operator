@@ -156,9 +156,7 @@ nav:
   - Development:
     - development/index.md
     - Architecture: development/architecture.md
-    - Building from Source: development/building.md
     - Testing: development/testing.md
-    - Release Process: development/releases.md
 
 extra_css:
   - stylesheets/extra.css
