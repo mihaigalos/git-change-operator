@@ -127,6 +127,7 @@ extra:
 
 nav:
   - Home: index.md
+  - Security: security.md
   
   - User Guide:
     - user-guide/index.md

@@ -232,4 +232,3 @@ This will:
 
 - Check the [troubleshooting section](../reference/error-handling.md) for common issues
 - Review operator logs: `kubectl logs -l app=git-change-operator`
-- Open an issue on [GitHub](https://github.com/mihaigalos/git-change-operator/issues) for support

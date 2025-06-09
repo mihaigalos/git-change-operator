@@ -81,6 +81,9 @@ rules:
   - get
   - patch
   - update
+# WARNING: Broad read permissions - NOT recommended for production
+# Use Helm chart with specific permissions instead
+# See: helm/git-change-operator/values.yaml -> rbac.additionalReadPermissions
 - apiGroups:
   - "*"
   resources:

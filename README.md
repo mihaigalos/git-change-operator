@@ -121,13 +121,15 @@ Share configuration between clusters through Git repositories.
 
     [:octicons-arrow-right-24: Reference](reference/index.md)
 
+-   :material-shield-check:{ .lg .middle } **Security**
+
+    ---
+
+    Production security considerations and RBAC configuration.
+
+    [:octicons-arrow-right-24: Security Considerations](docs/security.md)
+
 </div>
-
-## Community & Support
-
-- **GitHub**: [mihaigalos/git-change-operator](https://github.com/mihaigalos/git-change-operator)
-- **Issues**: Report bugs and request features on GitHub Issues
-- **Discussions**: Join the community discussions for questions and ideas
 
 ## License
 

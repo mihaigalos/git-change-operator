@@ -69,6 +69,24 @@ affinity: {}
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
+  
+  # Additional permissions for reading Kubernetes resources
+  # WARNING: The default "*" permissions are overly broad for security
+  # Configure specific resources that the operator needs to read
+  additionalReadPermissions:
+    # Enable broad read permissions (NOT recommended for production)
+    enableWildcard: true
+    
+    # Specific API groups and resources the operator can read
+    # Only used if enableWildcard is false
+    specificPermissions:
+      - apiGroups: [""]
+        resources: ["configmaps", "secrets", "pods", "services"]
+      - apiGroups: ["apps"]
+        resources: ["deployments", "replicasets", "statefulsets"]
+      - apiGroups: ["networking.k8s.io"]
+        resources: ["ingresses", "networkpolicies"]
+      # Add more specific permissions as needed
 
 # CRD installation
 # Note: CRDs in the crds/ directory are automatically installed by Helm

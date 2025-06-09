@@ -40,6 +40,11 @@ helm install git-change-operator helm/git-change-operator \
   --set resources.limits.memory=256Mi
 ```
 
+## Security Considerations
+
+Please see [../security.md].
+
+
 ## Configuration
 
 The following table lists the configurable parameters and their default values:

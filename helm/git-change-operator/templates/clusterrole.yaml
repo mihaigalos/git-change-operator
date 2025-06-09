@@ -85,6 +85,8 @@ rules:
   - get
   - patch
   - update
+{{- if .Values.rbac.additionalReadPermissions.enableWildcard }}
+# WARNING: Broad read permissions - NOT recommended for production
 - apiGroups:
   - "*"
   resources:
@@ -93,4 +95,21 @@ rules:
   - get
   - list
   - watch
+{{- else }}
+# Specific read permissions for Kubernetes resources
+{{- range .Values.rbac.additionalReadPermissions.specificPermissions }}
+- apiGroups:
+{{- range .apiGroups }}
+  - {{ . | quote }}
+{{- end }}
+  resources:
+{{- range .resources }}
+  - {{ . | quote }}
+{{- end }}
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
+{{- end }}
 {{- end }}
