@@ -58,7 +58,7 @@ k8s-multi-cluster-config/
 ### Production Cluster GitCommit
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: prod-cluster-sync
@@ -120,7 +120,7 @@ Implement automated detection and correction of configuration drift between clus
 ### Drift Detection GitCommit
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: drift-detection
@@ -171,7 +171,7 @@ Automate backup and restore procedures using GitCommit resources.
 ### Complete Cluster Backup
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: disaster-recovery-backup
@@ -234,7 +234,7 @@ Integrate with GitOps tools for complete CI/CD automation.
 ### ArgoCD Application Sync
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: argocd-app-sync
@@ -299,7 +299,7 @@ spec:
 ### Prometheus Operator Integration
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: prometheus-config-backup
@@ -351,7 +351,7 @@ Optimize for large-scale deployments and high-frequency updates.
 ### Batched Configuration Updates
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: batch-config-update
@@ -411,14 +411,14 @@ Implement robust error handling for production workloads.
 ### Resilient Configuration Sync
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: resilient-sync
   annotations:
     # Custom annotation for retry behavior
-    git.galos.one/retry-policy: "exponential-backoff"
-    git.galos.one/max-retries: "5"
+    gco.galos.one/retry-policy: "exponential-backoff"
+    gco.galos.one/max-retries: "5"
 spec:
   repository:
     url: "https://github.com/company/resilient-configs.git"
@@ -465,7 +465,7 @@ Implement comprehensive monitoring for GitCommit operations.
 ### Metrics Collection GitCommit
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: metrics-collection

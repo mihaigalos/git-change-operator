@@ -15,7 +15,7 @@ GitCommit resources enable you to:
 ### Minimal Example
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: simple-commit
@@ -37,7 +37,7 @@ This creates a commit with the contents of the `app-config` ConfigMap.
 ### Complete Example
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: comprehensive-commit
@@ -522,7 +522,7 @@ metadata:
   name: gitcommit-reader
 rules:
 # Permission to manage GitCommit resources
-- apiGroups: ["git.galos.one"]
+- apiGroups: ["gco.galos.one"]
   resources: ["gitcommits"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
@@ -553,7 +553,7 @@ data:
 
 ---
 # Reference in GitCommit
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: prod-commit
@@ -672,7 +672,7 @@ spec:
 Automatically backup all ConfigMaps:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: config-backup
@@ -697,7 +697,7 @@ spec:
 Track deployment changes:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: deployment-tracker
@@ -727,7 +727,7 @@ spec:
 Sync configurations across environments:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: cross-env-sync

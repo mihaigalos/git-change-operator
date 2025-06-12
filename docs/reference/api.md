@@ -4,7 +4,7 @@ Complete API documentation for the Git Change Operator Custom Resource Definitio
 
 ## API Group and Versions
 
-- **API Group**: `git.galos.one`
+- **API Group**: `gco.galos.one`
 - **Version**: `v1`
 - **Scope**: Namespaced
 
@@ -13,7 +13,7 @@ Complete API documentation for the Git Change Operator Custom Resource Definitio
 ### Resource Definition
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: string
@@ -240,7 +240,7 @@ status:
 ### Resource Definition
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: string
@@ -314,7 +314,7 @@ data:
 ### GitCommit with Multiple Strategies
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: comprehensive-commit
@@ -380,7 +380,7 @@ spec:
 ### PullRequest Example
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: config-update-pr

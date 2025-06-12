@@ -10,7 +10,7 @@ The `GitCommit` resource enables automated git commits by reading data from Kube
 ### Schema
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: example-gitcommit
@@ -135,7 +135,7 @@ The `PullRequest` resource creates GitHub pull requests with files generated fro
 ### Schema
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: example-pr

@@ -82,7 +82,7 @@ Let's create a simple GitCommit that adds a configuration file to a Git reposito
 Save this as `first-commit.yaml`:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: my-first-commit
@@ -141,7 +141,7 @@ Check your Git repository - you should see a new commit with the file `config/ap
 Now let's create a PullRequest resource:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: my-first-pr
@@ -187,7 +187,7 @@ kubectl get pullrequests my-first-pr
 One of the most powerful features is referencing existing Kubernetes resources:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: export-configmap

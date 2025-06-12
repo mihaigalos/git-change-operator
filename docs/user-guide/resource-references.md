@@ -9,7 +9,7 @@ Instead of specifying static file content, you can reference existing Kubernetes
 ## Basic Concept
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: export-resources
@@ -119,7 +119,7 @@ writeMode: append
 ### Export All ConfigMaps
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: backup-configs
@@ -144,7 +144,7 @@ spec:
 ### Secret Management
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: export-certificates
@@ -175,7 +175,7 @@ spec:
 ### Custom Resources
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: export-custom-resources
@@ -204,7 +204,7 @@ spec:
 You can mix resource references with static files in the same commit:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: complete-backup

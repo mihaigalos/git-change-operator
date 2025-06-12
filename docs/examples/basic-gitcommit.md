@@ -23,7 +23,7 @@ For GitHub, use a Personal Access Token as the password with `repo` permissions.
 ## Basic GitCommit Example
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: basic-commit
@@ -101,7 +101,7 @@ cat config/application.properties
 You can commit multiple files in a single GitCommit:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: multi-file-commit

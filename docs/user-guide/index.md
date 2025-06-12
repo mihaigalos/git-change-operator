@@ -28,7 +28,7 @@ The operator provides two main resource types:
 
 ### Basic File Commit
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: basic-commit
@@ -48,7 +48,7 @@ spec:
 
 ### Resource Reference
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: export-configmap

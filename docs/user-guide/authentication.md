@@ -71,7 +71,7 @@ data:
 #### Using GitHub Tokens in Resources
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: github-commit
@@ -117,7 +117,7 @@ data:
   username: Z2l0bGFidXNlcg==         # base64 encoded username
 
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: gitlab-mr
@@ -160,7 +160,7 @@ data:
   password: YXBwX3Bhc3N3b3Jk      # base64 encoded app password
 
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: bitbucket-commit
@@ -233,7 +233,7 @@ stringData:
 ### Using SSH Authentication
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: ssh-commit
@@ -266,7 +266,7 @@ data:
   password: bXlwYXNzd29yZA==  # base64 encoded password
 
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: basic-auth-commit
@@ -309,7 +309,7 @@ data:
 
 ---
 # Production GitCommit
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: prod-commit
@@ -322,7 +322,7 @@ spec:
 
 ---
 # Staging GitCommit
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit  
 metadata:
   name: staging-commit
@@ -387,7 +387,7 @@ data:
 
 ---
 # Multiple GitCommits using same credentials
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: repo1-commit
@@ -398,7 +398,7 @@ spec:
     tokenKey: token
 
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: repo2-commit
@@ -443,7 +443,7 @@ data:
 
 ---
 # GitCommit with fallback credentials
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: rotating-auth-commit
@@ -627,7 +627,7 @@ spec:
 ### GitHub Enterprise
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: github-enterprise-commit

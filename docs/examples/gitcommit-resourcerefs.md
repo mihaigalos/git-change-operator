@@ -32,7 +32,7 @@ kubectl create secret generic api-credentials \
 Export complete resources as YAML files for backup purposes:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: resource-backup
@@ -83,7 +83,7 @@ backups/
 Extract individual data fields as separate files:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: config-export
@@ -138,7 +138,7 @@ production/
 Extract specific fields with custom naming:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: targeted-export
@@ -205,7 +205,7 @@ apps/
 Combine multiple strategies in a single GitCommit for comprehensive exports:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: comprehensive-export
@@ -274,7 +274,7 @@ spec:
 Export resources from multiple namespaces:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: multi-namespace-export
@@ -325,7 +325,7 @@ spec:
 Export custom Kubernetes resources:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: custom-resource-export
@@ -376,7 +376,7 @@ spec:
 ### Append Mode for Log Aggregation
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: log-aggregation

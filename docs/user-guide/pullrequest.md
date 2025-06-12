@@ -15,7 +15,7 @@ PullRequest resources enable you to:
 ### Minimal Example
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: simple-pr
@@ -39,7 +39,7 @@ This creates a pull request with the contents of the `app-config` ConfigMap.
 ### Complete Example
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: comprehensive-pr
@@ -231,7 +231,7 @@ data:
 
 ---
 # PullRequest using GitHub token
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: github-pr
@@ -267,7 +267,7 @@ data:
 
 ---
 # PullRequest for GitLab (merge request)
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest  
 metadata:
   name: gitlab-mr
@@ -653,10 +653,10 @@ metadata:
   name: pullrequest-operator
 rules:
 # PullRequest resources
-- apiGroups: ["git.galos.one"]
+- apiGroups: ["gco.galos.one"]
   resources: ["pullrequests"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-- apiGroups: ["git.galos.one"]  
+- apiGroups: ["gco.galos.one"]  
   resources: ["pullrequests/status"]
   verbs: ["get", "update", "patch"]
 
@@ -676,7 +676,7 @@ rules:
 Implement a configuration review process:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: config-review-workflow
@@ -719,7 +719,7 @@ spec:
 Promote configurations across environments:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: env-promotion
@@ -767,7 +767,7 @@ spec:
 Maintain compliance with automated documentation:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: compliance-audit

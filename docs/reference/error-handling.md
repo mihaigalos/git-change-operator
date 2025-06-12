@@ -419,7 +419,7 @@ gitchange_operator_active_resources{type="GitCommit"}
 
 3. **Force reconciliation:**
    ```bash
-   kubectl annotate gitcommit my-commit reconcile.git.galos.one/trigger="$(date)"
+   kubectl annotate gitcommit my-commit reconcile.gco.galos.one/trigger="$(date)"
    ```
 
 ### Log Analysis

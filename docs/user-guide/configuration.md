@@ -90,7 +90,7 @@ spec:
 #### Basic Configuration
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: example-commit
@@ -111,7 +111,7 @@ spec:
 #### Advanced Configuration
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: advanced-commit
@@ -183,7 +183,7 @@ spec:
 #### Basic Configuration
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: example-pr
@@ -198,7 +198,7 @@ spec:
 #### Advanced Configuration
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: advanced-pr
@@ -307,7 +307,7 @@ data:
 
 ```yaml
 # GitCommit with specific credentials
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: secure-commit
@@ -409,10 +409,10 @@ metadata:
   name: git-change-operator-manager-role
 rules:
 # GitCommit and PullRequest resources
-- apiGroups: ["git.galos.one"]
+- apiGroups: ["gco.galos.one"]
   resources: ["gitcommits", "pullrequests"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-- apiGroups: ["git.galos.one"]
+- apiGroups: ["gco.galos.one"]
   resources: ["gitcommits/status", "pullrequests/status"]
   verbs: ["get", "update", "patch"]
 
@@ -449,7 +449,7 @@ rules:
   verbs: ["get", "list", "watch"]
 
 # Operator's own resources
-- apiGroups: ["git.galos.one"]
+- apiGroups: ["gco.galos.one"]
   resources: ["*"]
   verbs: ["*"]
 ```
@@ -806,7 +806,7 @@ webhooks:
       path: /validate-git-galos-one-v1-gitcommit
   rules:
   - operations: ["CREATE", "UPDATE"]
-    apiGroups: ["git.galos.one"]
+    apiGroups: ["gco.galos.one"]
     apiVersions: ["v1"]
     resources: ["gitcommits"]
 ```
@@ -843,7 +843,7 @@ repository: "git@github.com:user/repo.git"
 #### Missing Required Fields
 ```yaml
 # ❌ Missing required fields
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: incomplete
@@ -852,7 +852,7 @@ spec:
   # Missing: branch, message
 
 # ✅ Complete
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: complete

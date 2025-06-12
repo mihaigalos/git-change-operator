@@ -24,7 +24,7 @@ kubectl create secret generic github-token \
 ## Basic PullRequest Example
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: config-update-pr
@@ -79,7 +79,7 @@ spec:
 Combine static files with Kubernetes resource exports:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: cluster-config-sync
@@ -159,7 +159,7 @@ spec:
 Create PRs for different environments:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: staging-to-prod-promotion
@@ -223,7 +223,7 @@ spec:
 Use PullRequests to update documentation automatically:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: docs-update
@@ -292,7 +292,7 @@ spec:
 Handle sensitive configuration updates with extra care:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: security-config-update
@@ -442,7 +442,7 @@ Create separate PRs for different purposes:
 
 ```yaml
 # PR for configuration updates
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: config-pr
@@ -451,7 +451,7 @@ spec:
   
 ---
 # PR for documentation updates  
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: docs-pr

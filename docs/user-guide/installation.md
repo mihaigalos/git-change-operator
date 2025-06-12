@@ -111,11 +111,11 @@ kubectl get deployment git-change-operator-controller-manager \
   -n git-change-operator-system
 
 # Check CRDs are installed
-kubectl get crd | grep git.galos.one
+kubectl get crd | grep gco.galos.one
 
 # Expected output:
-# gitcommits.git.galos.one
-# pullrequests.git.galos.one
+# gitcommits.gco.galos.one
+# pullrequests.gco.galos.one
 ```
 
 ### Test Basic Functionality
@@ -123,7 +123,7 @@ kubectl get crd | grep git.galos.one
 Create a simple GitCommit resource to test:
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: test-commit

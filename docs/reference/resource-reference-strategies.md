@@ -169,7 +169,7 @@ resourceReferences:
 ### Multiple Strategies in One GitCommit
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: multi-strategy-commit

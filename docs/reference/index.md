@@ -43,10 +43,10 @@ The `PullRequest` custom resource creates GitHub pull requests automatically wit
 
 ## API Versions
 
-The Git Change Operator uses the API group `git.galos.one` with version `v1`.
+The Git Change Operator uses the API group `gco.galos.one` with version `v1`.
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 # or
 kind: PullRequest

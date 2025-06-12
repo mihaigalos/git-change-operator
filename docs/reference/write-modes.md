@@ -16,7 +16,7 @@ The Git Change Operator supports two write modes:
 ### Configuration
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: overwrite-example
@@ -68,7 +68,7 @@ Adds new content to the end of existing files.
 ### Configuration
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: append-example
@@ -119,7 +119,7 @@ Write modes apply to both static files and resource references:
 ### Overwrite with Resource References
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: config-export
@@ -142,7 +142,7 @@ spec:
 ### Append with Resource References
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit  
 metadata:
   name: log-collection
@@ -168,7 +168,7 @@ spec:
 ### Mixed Content Types
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: mixed-content
@@ -207,7 +207,7 @@ Currently, write mode applies to all files in a GitCommit. For different behavio
 
 ```yaml
 # Overwrite configuration files
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: config-update
@@ -220,7 +220,7 @@ spec:
       
 ---
 # Append to log files  
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: log-update
