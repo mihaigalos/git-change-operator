@@ -124,6 +124,7 @@ extra:
   
   version:
     provider: mike
+    default: 1.0.0
 
 nav:
   - Home: index.md

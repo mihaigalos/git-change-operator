@@ -1,0 +1,110 @@
+name: Publish Helm Chart
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'helm/**'
+      - '.github/workflows/helm-chart.yaml'
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  publish-helm-chart:
+    runs-on: ubuntu-latest
+    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'release'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Configure Git
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+    - name: Install Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: '3.12.0'
+        
+    - name: Package and publish Helm chart (Development)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        # Get the short commit SHA for development version
+        COMMIT_SHA=$(git rev-parse --short HEAD)
+        DEV_VERSION="0.0.0-dev-${COMMIT_SHA}"
+        
+        # Update chart version for development
+        sed -i "s/^version: .*/version: ${DEV_VERSION}/" helm/git-change-operator/Chart.yaml
+        sed -i "s/^appVersion: .*/appVersion: \"${DEV_VERSION}\"/" helm/git-change-operator/Chart.yaml
+        
+        # Create helm-chart branch if it doesn't exist
+        git fetch origin helm-chart:helm-chart 2>/dev/null || git checkout -b helm-chart
+        git checkout helm-chart
+        
+        # Clear the branch and add only the helm chart
+        git rm -rf . 2>/dev/null || true
+        git clean -fdx
+        
+        # Checkout only the helm chart from main
+        git checkout main -- helm/git-change-operator/
+        mv helm/git-change-operator/* .
+        rm -rf helm/
+        
+        # Package the chart
+        helm package .
+        
+        # Create or update index
+        if [ -f index.yaml ]; then
+          helm repo index . --merge index.yaml
+        else
+          helm repo index .
+        fi
+        
+        # Commit and push
+        git add .
+        git commit -m "Update Helm chart development version ${DEV_VERSION}"
+        git push origin helm-chart
+        
+    - name: Package and publish Helm chart (Release)
+      if: github.event_name == 'release'
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        CLEAN_VERSION=${VERSION#v}
+        
+        # Update chart version for release
+        sed -i "s/^version: .*/version: ${CLEAN_VERSION}/" helm/git-change-operator/Chart.yaml
+        sed -i "s/^appVersion: .*/appVersion: \"${CLEAN_VERSION}\"/" helm/git-change-operator/Chart.yaml
+        
+        # Create helm-chart branch if it doesn't exist
+        git fetch origin helm-chart:helm-chart 2>/dev/null || git checkout -b helm-chart
+        git checkout helm-chart
+        
+        # Clear the branch and add only the helm chart
+        git rm -rf . 2>/dev/null || true
+        git clean -fdx
+        
+        # Checkout only the helm chart from main
+        git checkout main -- helm/git-change-operator/
+        mv helm/git-change-operator/* .
+        rm -rf helm/
+        
+        # Package the chart
+        helm package .
+        
+        # Create or update index
+        if [ -f index.yaml ]; then
+          helm repo index . --merge index.yaml
+        else
+          helm repo index .
+        fi
+        
+        # Commit and push
+        git add .
+        git commit -m "Release Helm chart version ${CLEAN_VERSION}"
+        git push origin helm-chart

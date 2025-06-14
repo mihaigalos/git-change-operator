@@ -16,8 +16,9 @@ Get up and running with the Git Change Operator in just a few minutes.
 Using Helm (recommended):
 
 ```bash
-# Add the repository (if published)
-helm repo add git-change-operator https://mihaigalos.github.io/git-change-operator
+# Add the repository
+helm repo add git-change-operator https://raw.githubusercontent.com/mihaigalos/git-change-operator/helm-chart/
+helm repo update
 
 # Install the operator
 helm install git-change-operator git-change-operator/git-change-operator

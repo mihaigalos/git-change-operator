@@ -8,10 +8,15 @@
 For production deployments, use the production values file with specific RBAC permissions:
 
 ```bash
-helm install git-change-operator helm/git-change-operator \
+# Add the Helm repository
+helm repo add git-change-operator https://raw.githubusercontent.com/mihaigalos/git-change-operator/helm-chart/
+helm repo update
+
+# Install with production security configuration
+helm install git-change-operator git-change-operator/git-change-operator \
   --create-namespace \
   --namespace git-change-operator-system \
-  --values helm/git-change-operator/values-production.yaml
+  --values https://raw.githubusercontent.com/mihaigalos/git-change-operator/main/helm/git-change-operator/values-production.yaml
 ```
 
 ## Custom RBAC Configuration

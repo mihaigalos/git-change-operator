@@ -130,14 +130,32 @@ docs-deps: docs-venv ## Install documentation dependencies
 docs-serve: docs-deps ## Serve documentation locally for development
 	docs/.venv/bin/mkdocs serve
 
+docs-serve-versioned: docs-deps ## Serve versioned documentation locally
+	docs/.venv/bin/mike serve --dev-addr=127.0.0.1:8001
+
 docs-build: docs-deps ## Build documentation for production
 	docs/.venv/bin/mkdocs build
 
 docs-deploy: docs-deps ## Deploy documentation to GitHub Pages
 	docs/.venv/bin/mkdocs gh-deploy --force
 
+docs-version-deploy: docs-deps ## Deploy a new version of documentation (usage: make docs-version-deploy VERSION=1.1.0)
+ifndef VERSION
+	$(error VERSION is required. Usage: make docs-version-deploy VERSION=1.1.0)
+endif
+	docs/.venv/bin/mike deploy --push --update-aliases $(VERSION) latest
+
+docs-version-set-default: docs-deps ## Set default version for documentation (usage: make docs-version-set-default VERSION=1.0.0)
+ifndef VERSION
+	$(error VERSION is required. Usage: make docs-version-set-default VERSION=1.0.0)
+endif
+	docs/.venv/bin/mike set-default $(VERSION)
+
+docs-version-list: docs-deps ## List all deployed documentation versions
+	docs/.venv/bin/mike list
+
 docs-clean: ## Clean built documentation and virtual environment
 	rm -rf site/
 	rm -rf docs/.venv/
 
-.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy docs-venv docs-deps docs-serve docs-build docs-deploy docs-clean
+.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy docs-venv docs-deps docs-serve docs-serve-versioned docs-build docs-deploy docs-version-deploy docs-version-set-default docs-version-list docs-clean
