@@ -7,7 +7,7 @@ type: Opaque
 data:
   token: <base64-encoded-github-token>
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: example-pr

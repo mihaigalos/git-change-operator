@@ -93,7 +93,7 @@ writeMode: "append"
 ### GitCommit with Secret Dump
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: secret-dump
@@ -114,7 +114,7 @@ spec:
 ### PullRequest with Multiple Strategies
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: config-update

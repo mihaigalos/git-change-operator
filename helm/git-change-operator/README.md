@@ -73,7 +73,7 @@ After installation, you can create GitCommit and PullRequest resources:
 ### Example GitCommit
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: example-commit
@@ -94,7 +94,7 @@ spec:
 ### Example PullRequest
 
 ```yaml
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: example-pr

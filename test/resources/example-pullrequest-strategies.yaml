@@ -1,4 +1,4 @@
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: example-pr-dump-strategy
@@ -21,7 +21,7 @@ spec:
       path: "pr-examples/secret-dump.yaml"
       writeMode: "overwrite"
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: example-pr-fields-strategy
@@ -44,7 +44,7 @@ spec:
       path: "pr-examples/individual-fields"
       writeMode: "overwrite"
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: example-pr-single-field
@@ -69,7 +69,7 @@ spec:
       fieldRef:
         key: "alice"
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: PullRequest
 metadata:
   name: example-pr-mixed-strategies

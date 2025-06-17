@@ -34,9 +34,9 @@ type PullRequestReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=git.galos.one,resources=pullrequests,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=git.galos.one,resources=pullrequests/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=git.galos.one,resources=pullrequests/finalizers,verbs=update
+//+kubebuilder:rbac:groups=gco.galos.one,resources=pullrequests,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=gco.galos.one,resources=pullrequests/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=gco.galos.one,resources=pullrequests/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 //+kubebuilder:rbac:groups="*",resources="*",verbs=get;list;watch
 

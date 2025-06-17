@@ -36,7 +36,7 @@ var _ = Describe("PullRequest Controller", func() {
 			By("creating the custom resource for the Kind PullRequest")
 			pullRequest := &gitv1.PullRequest{}
 			err := k8sClient.Get(ctx, typeNamespacedName, pullRequest)
-			if err != nil && err.Error() == `pullrequests.git.galos.one "`+PullRequestName+`" not found` {
+			if err != nil && err.Error() == `pullrequests.gco.galos.one "`+PullRequestName+`" not found` {
 				resource := &gitv1.PullRequest{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      PullRequestName,

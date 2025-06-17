@@ -1,6 +1,6 @@
 // Package v1 contains API Schema definitions for the git v1 API group
 // +kubebuilder:object:generate=true
-// +groupName=git.galos.one
+// +groupName=gco.galos.one
 package v1
 
 import (
@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	GroupVersion  = schema.GroupVersion{Group: "git.galos.one", Version: "v1"}
+	GroupVersion  = schema.GroupVersion{Group: "gco.galos.one", Version: "v1"}
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 	AddToScheme   = SchemeBuilder.AddToScheme
 )

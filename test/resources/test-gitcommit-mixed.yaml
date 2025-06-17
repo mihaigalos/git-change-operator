@@ -18,7 +18,7 @@ data:
   max_connections: "100"
   feature_flags: "feature1,feature2,feature3"
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: test-gitcommit-mixed

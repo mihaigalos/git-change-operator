@@ -6,7 +6,7 @@ metadata:
 data:
   log_entry: "Additional log entry from ConfigMap"
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: test-append-mode-fixed

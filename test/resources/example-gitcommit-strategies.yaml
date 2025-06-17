@@ -1,4 +1,4 @@
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: example-dump-strategy
@@ -19,7 +19,7 @@ spec:
       path: "secrets/test-commitme-dump"
       writeMode: "overwrite"
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: example-fields-strategy
@@ -40,7 +40,7 @@ spec:
       path: "secrets/individual-fields"
       writeMode: "overwrite"
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: example-single-field-strategy
@@ -64,7 +64,7 @@ spec:
         key: "alice"
         fileName: "alice.txt"
 ---
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: example-append-mode

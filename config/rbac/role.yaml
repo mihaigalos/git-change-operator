@@ -21,7 +21,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - git.galos.one
+  - gco.galos.one
   resources:
   - gitcommits
   - pullrequests
@@ -34,14 +34,14 @@ rules:
   - update
   - watch
 - apiGroups:
-  - git.galos.one
+  - gco.galos.one
   resources:
   - gitcommits/finalizers
   - pullrequests/finalizers
   verbs:
   - update
 - apiGroups:
-  - git.galos.one
+  - gco.galos.one
   resources:
   - gitcommits/status
   - pullrequests/status

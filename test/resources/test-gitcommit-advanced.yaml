@@ -1,4 +1,4 @@
-apiVersion: git.galos.one/v1
+apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: test-gitcommit-advanced

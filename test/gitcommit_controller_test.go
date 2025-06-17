@@ -36,7 +36,7 @@ var _ = Describe("GitCommit Controller", func() {
 			By("creating the custom resource for the Kind GitCommit")
 			gitCommit := &gitv1.GitCommit{}
 			err := k8sClient.Get(ctx, typeNamespacedName, gitCommit)
-			if err != nil && err.Error() == `gitcommits.git.galos.one "`+GitCommitName+`" not found` {
+			if err != nil && err.Error() == `gitcommits.gco.galos.one "`+GitCommitName+`" not found` {
 				resource := &gitv1.GitCommit{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      GitCommitName,

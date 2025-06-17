@@ -33,9 +33,9 @@ type GitCommitReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=git.galos.one,resources=gitcommits,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=git.galos.one,resources=gitcommits/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=git.galos.one,resources=gitcommits/finalizers,verbs=update
+//+kubebuilder:rbac:groups=gco.galos.one,resources=gitcommits,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=gco.galos.one,resources=gitcommits/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=gco.galos.one,resources=gitcommits/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
