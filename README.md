@@ -1,7 +1,7 @@
 # git-change-operator
 
 &nbsp;
-![logo](images/git-change-operator-logo.png)
+![logo](docs/images/git-change-operator-logo.png)
 &nbsp;
 
 
