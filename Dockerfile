@@ -33,9 +33,18 @@ COPY controllers/ controllers/
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -o manager main.go && chmod +x manager
 
 FROM alpine:3.18
-RUN echo "https://artifacts.rbi.tech/artifactory/alpinelinux-org-alpine-proxy/edge/main" > /etc/apk/repositories && \
-    echo "https://artifacts.rbi.tech/artifactory/alpinelinux-org-alpine-proxy/edge/community" >> /etc/apk/repositories && \
-    apk --no-cache add ca-certificates curl
+
+# Accept build args for package repositories
+ARG APK_MAIN_REPO
+ARG APK_COMMUNITY_REPO
+
+# Configure Alpine repositories if custom ones are provided
+RUN if [ -n "$APK_MAIN_REPO" ] && [ -n "$APK_COMMUNITY_REPO" ]; then \
+        echo "$APK_MAIN_REPO" > /etc/apk/repositories && \
+        echo "$APK_COMMUNITY_REPO" >> /etc/apk/repositories; \
+    fi
+
+RUN apk --no-cache add ca-certificates curl
 WORKDIR /
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY zscaler.pe[m] /usr/local/share/ca-certificates/zscaler.crt

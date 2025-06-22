@@ -2,7 +2,7 @@ SHELL := /bin/bash
 
 IMG ?= git-change-operator:latest
 KUBEBUILDER_ASSETS ?= $(shell pwd)/bin/kubebuilder/k8s/1.34.1-darwin-arm64
-SETUP_ENVTEST_INDEX ?= https://artifacts.rbi.tech/artifactory/raw-githubusercontent-com-raw-proxy/kubernetes-sigs/controller-tools/HEAD/envtest-releases.yaml
+SETUP_ENVTEST_INDEX ?= https://raw.githubusercontent.com/kubernetes-sigs/controller-tools/HEAD/envtest-releases.yaml
 
 # Go proxy configuration (can be overridden via environment variables)
 GOPROXY_ARG ?= $(GOPROXY)

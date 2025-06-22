@@ -75,8 +75,14 @@ Integration tests require kubebuilder binaries. To set them up:
 go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 # Download and setup the binaries
-# If you encounter 403 Forbidden errors (corporate firewall/proxy), use:
-setup-envtest use --index "https://artifacts.rbi.tech/artifactory/raw-githubusercontent-com-raw-proxy/kubernetes-sigs/controller-tools/HEAD/envtest-releases.yaml" --bin-dir ./bin/kubebuilder
+# For corporate environments with proxy restrictions:
+# 1. First configure your corporate environment:
+#    source corporate-config.env
+# 2. Then run setup-envtest (it will use SETUP_ENVTEST_INDEX from corporate config):
+#    setup-envtest use --bin-dir ./bin/kubebuilder
+#
+# For direct GitHub access (public environments):
+setup-envtest use --bin-dir ./bin/kubebuilder
 export KUBEBUILDER_ASSETS=$(pwd)/bin/kubebuilder/k8s/1.34.1-darwin-arm64
 
 # Or if you have direct GitHub access:

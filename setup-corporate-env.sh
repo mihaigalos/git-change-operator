@@ -1,9 +1,10 @@
 #!/bin/bash
 # Corporate environment setup script
 # Run: source setup-corporate-env.sh
+# Or: source corporate-config.env
 
-export GOPROXY="https://artifacts.rbi.tech/artifactory/proxy-golang-org-go-proxy/,direct"
-export GOSUMDB="off"  # Disable checksum database when using corporate proxy
+export GOPROXY="https://proxy.golang.org,direct"
+export GOSUMDB="sum.golang.org"  # Default Go checksum database
 export GONOPROXY=""
 export GONOSUMDB=""
 
