@@ -26,6 +26,9 @@ jobs:
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        # Configure git to use the GitHub token for authentication
+        git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+        git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
         
     - name: Install Helm
       uses: azure/setup-helm@v4
@@ -51,8 +54,11 @@ jobs:
         git rm -rf . 2>/dev/null || true
         git clean -fdx
         
-        # Checkout only the helm chart from main
+        # Checkout helm chart and the config directory it depends on
         git checkout main -- helm/git-change-operator/
+        git checkout main -- config/crd/bases/v1/
+        
+        # Move helm chart to root and preserve symlink structure
         mv helm/git-change-operator/* .
         rm -rf helm/
         
@@ -89,8 +95,11 @@ jobs:
         git rm -rf . 2>/dev/null || true
         git clean -fdx
         
-        # Checkout only the helm chart from main
+        # Checkout helm chart and the config directory it depends on
         git checkout main -- helm/git-change-operator/
+        git checkout main -- config/crd/bases/v1/
+        
+        # Move helm chart to root and preserve symlink structure
         mv helm/git-change-operator/* .
         rm -rf helm/
         
