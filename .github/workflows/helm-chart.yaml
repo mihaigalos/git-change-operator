@@ -35,17 +35,28 @@ jobs:
       with:
         version: '3.12.0'
         
-    - name: Package and publish Helm chart (Development)
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    - name: Set version variables
+      id: version
       run: |
-        # Get the short commit SHA for development version
-        COMMIT_SHA=$(git rev-parse --short HEAD)
-        DEV_VERSION="0.0.0-dev-${COMMIT_SHA}"
+        if [[ "${{ github.event_name }}" == "release" ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+          CLEAN_VERSION=${VERSION#v}
+          echo "version=${CLEAN_VERSION}" >> $GITHUB_OUTPUT
+          echo "commit_message=Release Helm chart version ${CLEAN_VERSION}" >> $GITHUB_OUTPUT
+        else
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          DEV_VERSION="0.0.0-dev-${COMMIT_SHA}"
+          echo "version=${DEV_VERSION}" >> $GITHUB_OUTPUT
+          echo "commit_message=Update Helm chart development version ${DEV_VERSION}" >> $GITHUB_OUTPUT
+        fi
         
-        # Update chart version for development
-        sed -i "s/^version: .*/version: ${DEV_VERSION}/" helm/git-change-operator/Chart.yaml
-        sed -i "s/^appVersion: .*/appVersion: \"${DEV_VERSION}\"/" helm/git-change-operator/Chart.yaml
+    - name: Update Chart versions
+      run: |
+        sed -i "s/^version: .*/version: ${{ steps.version.outputs.version }}/" helm/git-change-operator/Chart.yaml
+        sed -i "s/^appVersion: .*/appVersion: \"${{ steps.version.outputs.version }}\"/" helm/git-change-operator/Chart.yaml
         
+    - name: Prepare helm-chart branch
+      run: |
         # Create helm-chart branch if it doesn't exist
         git fetch origin helm-chart:helm-chart 2>/dev/null || git checkout -b helm-chart
         git checkout helm-chart
@@ -58,51 +69,27 @@ jobs:
         git checkout main -- helm/git-change-operator/
         git checkout main -- config/crd/bases/v1/
         
-        # Move helm chart to root and preserve symlink structure
-        mv helm/git-change-operator/* .
-        rm -rf helm/
-        
-        # Package the chart
-        helm package .
-        
-        # Create or update index
-        if [ -f index.yaml ]; then
-          helm repo index . --merge index.yaml
-        else
-          helm repo index .
-        fi
-        
-        # Commit and push
-        git add .
-        git commit -m "Update Helm chart development version ${DEV_VERSION}"
-        git push origin helm-chart
-        
-    - name: Package and publish Helm chart (Release)
-      if: github.event_name == 'release'
+    - name: Setup helm chart structure
       run: |
-        VERSION=${GITHUB_REF#refs/tags/}
-        CLEAN_VERSION=${VERSION#v}
-        
-        # Update chart version for release
-        sed -i "s/^version: .*/version: ${CLEAN_VERSION}/" helm/git-change-operator/Chart.yaml
-        sed -i "s/^appVersion: .*/appVersion: \"${CLEAN_VERSION}\"/" helm/git-change-operator/Chart.yaml
-        
-        # Create helm-chart branch if it doesn't exist
-        git fetch origin helm-chart:helm-chart 2>/dev/null || git checkout -b helm-chart
-        git checkout helm-chart
-        
-        # Clear the branch and add only the helm chart
-        git rm -rf . 2>/dev/null || true
-        git clean -fdx
-        
-        # Checkout helm chart and the config directory it depends on
-        git checkout main -- helm/git-change-operator/
-        git checkout main -- config/crd/bases/v1/
-        
-        # Move helm chart to root and preserve symlink structure
+        # Move helm chart to root and fix symlink paths
         mv helm/git-change-operator/* .
         rm -rf helm/
         
+        # Fix all broken symlinks dynamically
+        # Find all broken symlinks in crds/ and recreate them with correct paths
+        find crds/ -type l -exec test ! -e {} \; -print | while read -r broken_link; do
+          # Get the original symlink target (relative to original location)
+          original_target=$(readlink "$broken_link")
+          # Convert ../../../config to ../config for new location
+          new_target=$(echo "$original_target" | sed 's|^\.\./\.\./\.\./config|../config|')
+          # Recreate the symlink
+          rm -f "$broken_link"
+          ln -sf "$new_target" "$broken_link"
+          echo "Fixed symlink: $broken_link -> $new_target"
+        done
+        
+    - name: Package and publish
+      run: |
         # Package the chart
         helm package .
         
@@ -115,5 +102,5 @@ jobs:
         
         # Commit and push
         git add .
-        git commit -m "Release Helm chart version ${CLEAN_VERSION}"
+        git commit -m "${{ steps.version.outputs.commit_message }}"
         git push origin helm-chart
