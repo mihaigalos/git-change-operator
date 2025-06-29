@@ -44,16 +44,11 @@ jobs:
           echo "version=${CLEAN_VERSION}" >> $GITHUB_OUTPUT
           echo "commit_message=Release Helm chart version ${CLEAN_VERSION}" >> $GITHUB_OUTPUT
         else
-          COMMIT_SHA=$(git rev-parse --short HEAD)
-          DEV_VERSION="0.0.0-dev-${COMMIT_SHA}"
-          echo "version=${DEV_VERSION}" >> $GITHUB_OUTPUT
-          echo "commit_message=Update Helm chart development version ${DEV_VERSION}" >> $GITHUB_OUTPUT
+          # For main branch pushes, use the version from Chart.yaml
+          CHART_VERSION=$(yq eval '.version' helm/git-change-operator/Chart.yaml)
+          echo "version=${CHART_VERSION}" >> $GITHUB_OUTPUT
+          echo "commit_message=Update Helm chart version ${CHART_VERSION}" >> $GITHUB_OUTPUT
         fi
-        
-    - name: Update Chart versions
-      run: |
-        sed -i "s/^version: .*/version: ${{ steps.version.outputs.version }}/" helm/git-change-operator/Chart.yaml
-        sed -i "s/^appVersion: .*/appVersion: \"${{ steps.version.outputs.version }}\"/" helm/git-change-operator/Chart.yaml
         
     - name: Prepare helm-chart branch
       run: |
@@ -68,6 +63,16 @@ jobs:
         # Checkout helm chart and the config directory it depends on
         git checkout main -- helm/git-change-operator/
         git checkout main -- config/crd/bases/v1/
+        
+    - name: Update Chart versions
+      run: |
+        if [[ "${{ github.event_name }}" == "release" ]]; then
+          # Only update versions for releases, use Chart.yaml as-is for main branch
+          sed -i "s/^version: .*/version: ${{ steps.version.outputs.version }}/" helm/git-change-operator/Chart.yaml
+          sed -i "s/^appVersion: .*/appVersion: \"${{ steps.version.outputs.version }}\"/" helm/git-change-operator/Chart.yaml
+        else
+          echo "Using Chart.yaml version as-is: ${{ steps.version.outputs.version }}"
+        fi
         
     - name: Setup helm chart structure
       run: |

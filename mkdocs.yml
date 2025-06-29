@@ -1,7 +1,7 @@
 site_name: Git Change Operator
 site_description: A Kubernetes operator for automating git commits and pull requests based on cluster resources
 site_author: Mihai Galos
-# site_url: https://mihaigalos.github.io/git-change-operator/  # Comment out for local dev
+site_url: https://mihaigalos.github.io/git-change-operator/  # Comment out for local dev
 
 repo_name: mihaigalos/git-change-operator
 repo_url: https://github.com/mihaigalos/git-change-operator
@@ -125,7 +125,6 @@ extra:
   
   version:
     provider: mike
-    default: 1.0.0
 
 nav:
   - Home: index.md

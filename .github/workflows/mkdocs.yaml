@@ -81,7 +81,15 @@ jobs:
     - name: Deploy development version
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: |
-        # Check if docs branch exists remotely
+        CHART_VERSION=$(yq eval '.version' helm/git-change-operator/Chart.yaml)
+        echo "Using version from Chart.yaml: ${CHART_VERSION}"
+        yq eval ".extra.version.default = \"${CHART_VERSION}\"" -i mkdocs.yml
+        
+        # Clean up any potential git state conflicts
+        # The docs/ directory might conflict with docs branch name
+        git clean -fd
+
+        # Check if docs branch exists remotely and prepare git state
         if ! git ls-remote --exit-code --heads origin docs; then
           echo "Creating new docs branch for first deployment"
           # Create and push an empty docs branch first
@@ -93,12 +101,14 @@ jobs:
           git push origin docs
           # Return to main branch
           git checkout main
-          # Now deploy with mike
-          mike deploy --push --remote origin --branch docs dev latest --update-aliases
         else
-          echo "Updating existing docs branch"
-          mike deploy --push --remote origin --branch docs dev latest --update-aliases
+          echo "Docs branch exists remotely, fetching it locally"
+          # Fetch the docs branch to local git state
+          git fetch origin docs:docs 2>/dev/null || true
         fi
+        
+        # Deploy with mike (mike handles branch switching internally)
+        mike deploy --push --remote origin --branch docs ${CHART_VERSION} latest --update-aliases
         
     - name: Deploy release version
       if: github.event_name == 'release'
