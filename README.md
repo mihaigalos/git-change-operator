@@ -1,5 +1,8 @@
 # git-change-operator
 
+[![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml)
+[![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml)
+
 &nbsp;
 ![logo](docs/images/git-change-operator-logo.png)
 &nbsp;
@@ -37,8 +40,6 @@ The operator can reference any Kubernetes resource and extract its data using va
 
 ```mermaid
 graph TB
-    %%{init: {"theme": "default", "themeVariables": { "background": "#ffffff"}}}%%
-
     %% User creates resources
     User["👤 User"] -->|creates| A["📄 GitCommit/PullRequest CR"]
     

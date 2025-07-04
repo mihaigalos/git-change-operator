@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -75,18 +76,33 @@ var _ = Describe("GitCommit Controller", func() {
 		})
 
 		AfterEach(func() {
-			resource := &gitv1.GitCommit{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
 			By("Cleanup the specific resource instance GitCommit")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			resource := &gitv1.GitCommit{}
+			Eventually(func() error {
+				// Get the latest version of the resource
+				if err := k8sClient.Get(ctx, typeNamespacedName, resource); err != nil {
+					// If resource doesn't exist, cleanup is done
+					if apierrors.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
+				// Try to delete with the fresh resource version
+				return k8sClient.Delete(ctx, resource)
+			}, timeout, interval).Should(Succeed())
 
+			By("Cleanup the auth secret")
 			secret := &corev1.Secret{}
-			err = k8sClient.Get(ctx, types.NamespacedName{Name: "test-secret", Namespace: GitCommitNamespace}, secret)
-			if err == nil {
-				Expect(k8sClient.Delete(ctx, secret)).To(Succeed())
-			}
+			Eventually(func() error {
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: "test-secret", Namespace: GitCommitNamespace}, secret); err != nil {
+					// If secret doesn't exist, cleanup is done
+					if apierrors.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
+				return k8sClient.Delete(ctx, secret)
+			}, timeout, interval).Should(Succeed())
 		})
 
 		It("should successfully reconcile the resource", func() {
