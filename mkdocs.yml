@@ -12,8 +12,9 @@ copyright: Copyright &copy; 2025 Mihai Galos
 theme:
   name: material
   language: en
+  favicon: images/kubernetes-logo.svg
   logo: images/kubernetes-logo.svg
-  
+
 
   palette:
     - media: "(prefers-color-scheme: light)"
@@ -27,16 +28,16 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
 
-  
+
   font:
     text: Roboto
     code: Roboto Mono
-  
+
   icon:
     repo: fontawesome/brands/github
     edit: material/pencil
     view: material/eye
-  
+
   features:
     - navigation.instant
     - navigation.instant.prefetch
@@ -123,14 +124,14 @@ extra:
       link: https://github.com/mihaigalos
     - icon: fontawesome/brands/docker
       link: https://hub.docker.com/r/mihaigalos/git-change-operator
-  
+
   version:
     provider: mike
 
 nav:
   - Home: index.md
   - Security: security.md
-  
+
   - User Guide:
     - user-guide/index.md
     - Installation: user-guide/installation.md
@@ -140,7 +141,7 @@ nav:
     - PullRequest Resources: user-guide/pullrequest.md
     - Resource References: user-guide/resource-references.md
     - Authentication: user-guide/authentication.md
-    
+
   - Reference:
     - reference/index.md
     - CRD Specification: reference/crd-spec.md
@@ -148,14 +149,14 @@ nav:
     - Resource Reference Strategies: reference/resource-reference-strategies.md
     - Write Modes: reference/write-modes.md
     - Error Handling: reference/error-handling.md
-    
+
   - Examples:
     - examples/index.md
     - Basic GitCommit: examples/basic-gitcommit.md
     - GitCommit with Resource References: examples/gitcommit-resourcerefs.md
     - PullRequest Creation: examples/pullrequest.md
     - Advanced Scenarios: examples/advanced.md
-    
+
   - Development:
     - development/index.md
     - Architecture: development/architecture.md
