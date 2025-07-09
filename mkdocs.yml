@@ -12,6 +12,7 @@ copyright: Copyright &copy; 2025 Mihai Galos
 theme:
   name: material
   language: en
+  logo: images/kubernetes-logo.svg
   
 
   palette:

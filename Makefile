@@ -63,10 +63,12 @@ test-all: setup-test-env fmt vet ## Run all tests (unit + integration)
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) go test -v ./test/...
 
 ##@ Build and Deploy
+# Have a look at docs/examples/corporate-setup.md
+# Consider running: source corporate-config.env
 docker-build: ## Build docker image
-	@if [ -f "/Users/mihai.galos/certs/zscaler.pem" ]; then \
+	@if [ -n "${SSL_CERT_FILE}" ] && [ -f "${SSL_CERT_FILE}" ]; then \
 		echo "Copying corporate certificate for build..."; \
-		cp /Users/mihai.galos/certs/zscaler.pem ./zscaler.pem; \
+		cp "${SSL_CERT_FILE}" ./zscaler.pem; \
 	fi
 	@echo "Building Docker image with proxy configuration..."
 	@docker build --network=host \

@@ -1,3 +1,4 @@
+#----------------------------------------------------------------------------------------------
 FROM golang:1.21 AS builder
 
 WORKDIR /workspace
@@ -32,6 +33,7 @@ COPY controllers/ controllers/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -o manager main.go && chmod +x manager
 
+#----------------------------------------------------------------------------------------------
 FROM alpine:3.18
 
 # Accept build args for package repositories
