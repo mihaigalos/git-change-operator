@@ -137,27 +137,13 @@ make test-integration
    ```
    **Solution:** Ensure `APK_MAIN_REPO` and `APK_COMMUNITY_REPO` are set correctly for Alpine packages.
 
-### Validation Commands
-
-Verify your corporate configuration:
-
-```bash
-# Check Go proxy configuration
-go env GOPROXY GOSUMDB
-
-# Test Go module download
-go list -m -versions github.com/operator-framework/operator-sdk
-
-# Test Docker build
-docker build $DOCKER_BUILD_ARGS --no-cache -t test-build .
-```
 
 ## Security Considerations
 
-- **Never commit `corporate-config.env` to version control** - it's already in `.gitignore`
+- **Never commit `corporate-config.env` to public-facing repos** - it's already ignored in `.gitignore`
 - **Keep corporate URLs and certificates confidential**
 - **Regularly update corporate CA certificates**
-- **Use least privilege principles for service accounts**
+- **Use principle of least provilege for service accounts**
 
 ## Integration with CI/CD
 
