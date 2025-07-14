@@ -10,6 +10,10 @@ GOSUMDB_ARG ?= $(GOSUMDB)
 GONOPROXY_ARG ?= $(GONOPROXY)
 GONOSUMDB_ARG ?= $(GONOSUMDB)
 
+# Alpine repository configuration for corporate environments
+APK_MAIN_REPO_ARG ?= $(APK_MAIN_REPO)
+APK_COMMUNITY_REPO_ARG ?= $(APK_COMMUNITY_REPO)
+
 all: build
 
 help: ## Display this help
@@ -64,11 +68,21 @@ test-all: setup-test-env fmt vet ## Run all tests (unit + integration)
 
 ##@ Build and Deploy
 # Have a look at docs/examples/corporate-setup.md
-# Consider running: source corporate-config.env
+# Copy corporate-config.env.example to corporate-config.env and customize
+# Then run: source corporate-config.env
 docker-build: ## Build docker image
+	@if [ -f corporate-config.env ]; then \
+		echo "Found corporate-config.env, sourcing it..."; \
+		source corporate-config.env; \
+	else \
+		echo "corporate-config.env not found, proceeding without it"; \
+	fi
 	@if [ -n "${SSL_CERT_FILE}" ] && [ -f "${SSL_CERT_FILE}" ]; then \
 		echo "Copying corporate certificate for build..."; \
-		cp "${SSL_CERT_FILE}" ./zscaler.pem; \
+		cp "${SSL_CERT_FILE}" ./corporate-ca.pem; \
+	else \
+		echo "No corporate certificate configured or found, using system certificates"; \
+		touch ./corporate-ca.pem; \
 	fi
 	@echo "Building Docker image with proxy configuration..."
 	@docker build --network=host \
@@ -82,10 +96,12 @@ docker-build: ## Build docker image
 		$(if $(GOSUMDB_ARG),--build-arg GOSUMDB="$(GOSUMDB_ARG)") \
 		$(if $(GONOPROXY_ARG),--build-arg GONOPROXY="$(GONOPROXY_ARG)") \
 		$(if $(GONOSUMDB_ARG),--build-arg GONOSUMDB="$(GONOSUMDB_ARG)") \
+		$(if $(APK_MAIN_REPO_ARG),--build-arg APK_MAIN_REPO="$(APK_MAIN_REPO_ARG)") \
+		$(if $(APK_COMMUNITY_REPO_ARG),--build-arg APK_COMMUNITY_REPO="$(APK_COMMUNITY_REPO_ARG)") \
 		-t ${IMG} .
-	@if [ -f "./zscaler.pem" ]; then \
+	@if [ -f "./corporate-ca.pem" ]; then \
 		echo "Cleaning up certificate..."; \
-		rm ./zscaler.pem; \
+		rm ./corporate-ca.pem; \
 	fi
 
 docker-push: ## Push docker image

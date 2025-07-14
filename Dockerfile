@@ -16,12 +16,12 @@ ENV GONOPROXY=${GONOPROXY}
 ENV GONOSUMDB=${GONOSUMDB}
 
 # Copy corporate certificate and install it if provided
-COPY zscaler.pe[m] /tmp/zscaler.pem
-RUN if [ -f /tmp/zscaler.pem ]; then \
+COPY corporate-ca.pe[m] /tmp/corporate-ca.pem
+RUN if [ -f /tmp/corporate-ca.pem ] && [ -s /tmp/corporate-ca.pem ]; then \
         apt-get update && apt-get install -y ca-certificates && \
-        cp /tmp/zscaler.pem /usr/local/share/ca-certificates/zscaler.crt && \
+        cp /tmp/corporate-ca.pem /usr/local/share/ca-certificates/corporate-ca.crt && \
         update-ca-certificates && \
-        rm /tmp/zscaler.pem; \
+        rm /tmp/corporate-ca.pem; \
     fi
 
 COPY go.mod go.sum ./
@@ -40,6 +40,14 @@ FROM alpine:3.18
 ARG APK_MAIN_REPO
 ARG APK_COMMUNITY_REPO
 
+# Copy and install corporate certificate BEFORE configuring repositories or running apk
+COPY corporate-ca.pe[m] /usr/local/share/ca-certificates/corporate-ca.crt
+RUN if [ -f /usr/local/share/ca-certificates/corporate-ca.crt ] && [ -s /usr/local/share/ca-certificates/corporate-ca.crt ]; then \
+        update-ca-certificates; \
+    else \
+        echo "No corporate certificate provided or empty file"; \
+    fi
+
 # Configure Alpine repositories if custom ones are provided
 RUN if [ -n "$APK_MAIN_REPO" ] && [ -n "$APK_COMMUNITY_REPO" ]; then \
         echo "$APK_MAIN_REPO" > /etc/apk/repositories && \
@@ -49,8 +57,6 @@ RUN if [ -n "$APK_MAIN_REPO" ] && [ -n "$APK_COMMUNITY_REPO" ]; then \
 RUN apk --no-cache add ca-certificates curl
 WORKDIR /
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY zscaler.pe[m] /usr/local/share/ca-certificates/zscaler.crt
-RUN update-ca-certificates 2>/dev/null || true
 COPY --from=builder /workspace/manager /manager
 RUN chmod +x /manager
 ENTRYPOINT ["/manager"]
