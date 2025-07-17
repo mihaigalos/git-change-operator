@@ -1,5 +1,6 @@
 # git-change-operator
 
+[![CI](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml)
 [![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml)
 [![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml)
 

@@ -78,14 +78,14 @@ docker-build: ## Build docker image
 		echo "corporate-config.env not found, proceeding without it"; \
 	fi
 	@if [ -n "${SSL_CERT_FILE}" ] && [ -f "${SSL_CERT_FILE}" ]; then \
-		echo "Copying corporate certificate for build..."; \
-		cp "${SSL_CERT_FILE}" ./corporate-ca.pem; \
+		echo "Reading corporate certificate content from ${SSL_CERT_FILE}..."; \
+		CERT_CONTENT=$$(cat "${SSL_CERT_FILE}"); \
 	else \
 		echo "No corporate certificate configured or found, using system certificates"; \
-		touch ./corporate-ca.pem; \
-	fi
-	@echo "Building Docker image with proxy configuration..."
-	@docker build --network=host \
+		CERT_CONTENT=""; \
+	fi; \
+	echo "Building Docker image with proxy configuration..."; \
+	docker build --network=host \
 		--build-arg HTTP_PROXY="${HTTP_PROXY}" \
 		--build-arg HTTPS_PROXY="${HTTPS_PROXY}" \
 		--build-arg NO_PROXY="${NO_PROXY}" \
@@ -98,11 +98,8 @@ docker-build: ## Build docker image
 		$(if $(GONOSUMDB_ARG),--build-arg GONOSUMDB="$(GONOSUMDB_ARG)") \
 		$(if $(APK_MAIN_REPO_ARG),--build-arg APK_MAIN_REPO="$(APK_MAIN_REPO_ARG)") \
 		$(if $(APK_COMMUNITY_REPO_ARG),--build-arg APK_COMMUNITY_REPO="$(APK_COMMUNITY_REPO_ARG)") \
+		--build-arg CORPORATE_CA_CERT="$$CERT_CONTENT" \
 		-t ${IMG} .
-	@if [ -f "./corporate-ca.pem" ]; then \
-		echo "Cleaning up certificate..."; \
-		rm ./corporate-ca.pem; \
-	fi
 
 docker-push: ## Push docker image
 	docker push ${IMG}

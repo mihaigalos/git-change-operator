@@ -9,19 +9,23 @@ ARG GOSUMDB
 ARG GONOPROXY
 ARG GONOSUMDB
 
+# Accept build arg for corporate certificate content
+ARG CORPORATE_CA_CERT
+
 # Set Go proxy configuration if provided
 ENV GOPROXY=${GOPROXY:-direct}
 ENV GOSUMDB=${GOSUMDB:-sum.golang.org}
 ENV GONOPROXY=${GONOPROXY}
 ENV GONOSUMDB=${GONOSUMDB}
 
-# Copy corporate certificate and install it if provided
-COPY corporate-ca.pe[m] /tmp/corporate-ca.pem
-RUN if [ -f /tmp/corporate-ca.pem ] && [ -s /tmp/corporate-ca.pem ]; then \
+# Install corporate certificate if provided
+RUN if [ -n "$CORPORATE_CA_CERT" ]; then \
         apt-get update && apt-get install -y ca-certificates && \
-        cp /tmp/corporate-ca.pem /usr/local/share/ca-certificates/corporate-ca.crt && \
+        echo "$CORPORATE_CA_CERT" > /usr/local/share/ca-certificates/corporate-ca.crt && \
         update-ca-certificates && \
-        rm /tmp/corporate-ca.pem; \
+        echo "Corporate certificate installed from build arg"; \
+    else \
+        echo "No corporate certificate provided in build arg"; \
     fi
 
 COPY go.mod go.sum ./
@@ -40,13 +44,8 @@ FROM alpine:3.18
 ARG APK_MAIN_REPO
 ARG APK_COMMUNITY_REPO
 
-# Copy and install corporate certificate BEFORE configuring repositories or running apk
-COPY corporate-ca.pe[m] /usr/local/share/ca-certificates/corporate-ca.crt
-RUN if [ -f /usr/local/share/ca-certificates/corporate-ca.crt ] && [ -s /usr/local/share/ca-certificates/corporate-ca.crt ]; then \
-        update-ca-certificates; \
-    else \
-        echo "No corporate certificate provided or empty file"; \
-    fi
+# Accept build arg for corporate certificate content (passed from builder stage)
+ARG CORPORATE_CA_CERT
 
 # Configure Alpine repositories if custom ones are provided
 RUN if [ -n "$APK_MAIN_REPO" ] && [ -n "$APK_COMMUNITY_REPO" ]; then \
@@ -54,7 +53,17 @@ RUN if [ -n "$APK_MAIN_REPO" ] && [ -n "$APK_COMMUNITY_REPO" ]; then \
         echo "$APK_COMMUNITY_REPO" >> /etc/apk/repositories; \
     fi
 
+# Install ca-certificates first
 RUN apk --no-cache add ca-certificates curl
+
+# Install corporate certificate from build arg AFTER ca-certificates is installed
+RUN if [ -n "$CORPORATE_CA_CERT" ]; then \
+        echo "$CORPORATE_CA_CERT" > /usr/local/share/ca-certificates/corporate-ca.crt && \
+        update-ca-certificates && \
+        echo "Corporate certificate installed from build arg"; \
+    else \
+        echo "No corporate certificate provided in build arg"; \
+    fi
 WORKDIR /
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /workspace/manager /manager
