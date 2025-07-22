@@ -1,8 +1,9 @@
 # git-change-operator
 
 [![CI](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml)
-[![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml)
+[![Docker Build](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml)
 [![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml)
+[![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml)
 
 &nbsp;
 ![logo](docs/images/git-change-operator-logo.png)
