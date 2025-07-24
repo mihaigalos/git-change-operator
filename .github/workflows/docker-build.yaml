@@ -9,11 +9,15 @@ on:
 
 env:
   GO_VERSION: '1.21'
+  REGISTRY: ghcr.io
 
 jobs:
   docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     
     steps:
     - name: Checkout code
@@ -31,7 +35,7 @@ jobs:
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
-        registry: ghcr.io
+        registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -71,35 +75,38 @@ jobs:
 
     - name: Tag and push to GHCR
       run: |
-        # Get repository name from GitHub context
-        REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
+        # Use full repository path for GHCR
+        IMAGE_NAME="${{ env.REGISTRY }}/${{ github.repository }}"
         
         # Get version information
         APP_VERSION="${{ steps.chart-versions.outputs.app-version }}"
         CHART_VERSION="${{ steps.chart-versions.outputs.chart-version }}"
         VERSION_TAG="${{ steps.chart-versions.outputs.version-tag }}"
         
+        # Convert to lowercase for registry compatibility
+        IMAGE_NAME=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
+        
         # Tag the image for GHCR
-        docker tag git-change-operator:latest ghcr.io/mihaigalos/${REPO_NAME}:latest
-        docker tag git-change-operator:latest ghcr.io/mihaigalos/${REPO_NAME}:${VERSION_TAG}
+        docker tag git-change-operator:latest ${IMAGE_NAME}:latest
+        docker tag git-change-operator:latest ${IMAGE_NAME}:${VERSION_TAG}
         
         # Also tag with commit SHA on main branch
         if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          docker tag git-change-operator:latest ghcr.io/mihaigalos/${REPO_NAME}:${{ github.sha }}
+          docker tag git-change-operator:latest ${IMAGE_NAME}:${{ github.sha }}
         fi
         
         # Push the images
-        docker push ghcr.io/mihaigalos/${REPO_NAME}:latest
-        docker push ghcr.io/mihaigalos/${REPO_NAME}:${VERSION_TAG}
+        docker push ${IMAGE_NAME}:latest
+        docker push ${IMAGE_NAME}:${VERSION_TAG}
         
         # Push SHA tag only on main branch
         if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          docker push ghcr.io/mihaigalos/${REPO_NAME}:${{ github.sha }}
+          docker push ${IMAGE_NAME}:${{ github.sha }}
         fi
         
         echo "✅ Pushed images:"
-        echo "  - ghcr.io/mihaigalos/${REPO_NAME}:latest"
-        echo "  - ghcr.io/mihaigalos/${REPO_NAME}:${VERSION_TAG}"
+        echo "  - ${IMAGE_NAME}:latest"
+        echo "  - ${IMAGE_NAME}:${VERSION_TAG}"
         if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          echo "  - ghcr.io/mihaigalos/${REPO_NAME}:${{ github.sha }}"
+          echo "  - ${IMAGE_NAME}:${{ github.sha }}"
         fi
