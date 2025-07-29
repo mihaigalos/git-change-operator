@@ -27,7 +27,7 @@ vet: ## Run go vet
 	go vet ./...
 
 manifests: ## Generate CRDs and RBAC manifests
-	controller-gen crd:crdVersions=v1 rbac:roleName=manager-role paths=./... output:crd:artifacts:config=config/crd output:rbac:artifacts:config=config/rbac
+	controller-gen crd:crdVersions=v1 rbac:roleName=manager-role paths=./... output:crd:artifacts:config=config/crd/bases/v1 output:rbac:artifacts:config=config/rbac
 
 generate: ## Generate Go code (deepcopy, etc.)
 	controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
