@@ -4,10 +4,11 @@
 
 # Operator image configuration
 image:
-  repository: git-change-operator
+  repository: ghcr.io/mihaigalos/git-change-operator
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  # When not specified, uses chart appVersion (which creates appVersion-chartVersion tag)
+  tag: ""
 
 # Image pull secrets for private registries
 imagePullSecrets: []

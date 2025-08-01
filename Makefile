@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-IMG ?= git-change-operator:latest
+IMG ?= ghcr.io/mihaigalos/git-change-operator:latest
 KUBEBUILDER_ASSETS ?= $(shell pwd)/bin/kubebuilder/k8s/1.34.1-darwin-arm64
 SETUP_ENVTEST_INDEX ?= https://raw.githubusercontent.com/kubernetes-sigs/controller-tools/HEAD/envtest-releases.yaml
 

@@ -82,6 +82,6 @@ Create the image name
 {{- if .Values.image.tag }}
 {{- printf "%s:%s" .Values.image.repository .Values.image.tag }}
 {{- else }}
-{{- printf "%s:%s" .Values.image.repository .Chart.AppVersion }}
+{{- printf "%s:%s-%s" .Values.image.repository .Chart.AppVersion .Chart.Version }}
 {{- end }}
 {{- end }}

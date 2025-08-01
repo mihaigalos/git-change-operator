@@ -25,7 +25,7 @@ spec:
       containers:
       - command:
         - /manager
-        image: git-change-operator:latest
+        image: ghcr.io/mihaigalos/git-change-operator:1.0.0-1.0.0
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
