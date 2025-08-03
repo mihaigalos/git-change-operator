@@ -68,4 +68,8 @@ WORKDIR /
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /workspace/manager /manager
 RUN chmod +x /manager
+
+# Copy Helm chart for easy extraction
+COPY helm/git-change-operator /helm/git-change-operator
+
 ENTRYPOINT ["/manager"]
