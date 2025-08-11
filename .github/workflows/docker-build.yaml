@@ -86,13 +86,16 @@ jobs:
         # Convert to lowercase for registry compatibility
         IMAGE_NAME=$(echo "${IMAGE_NAME}" | tr '[:upper:]' '[:lower:]')
         
-        # Tag the image for GHCR
-        docker tag git-change-operator:latest ${IMAGE_NAME}:latest
-        docker tag git-change-operator:latest ${IMAGE_NAME}:${VERSION_TAG}
+        # Get the locally built image name (should match Makefile IMG variable)
+        LOCAL_IMAGE="ghcr.io/mihaigalos/git-change-operator:latest"
+        
+        # Tag the image for GHCR with version-specific tags
+        docker tag ${LOCAL_IMAGE} ${IMAGE_NAME}:latest
+        docker tag ${LOCAL_IMAGE} ${IMAGE_NAME}:${VERSION_TAG}
         
         # Also tag with commit SHA on main branch
         if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-          docker tag git-change-operator:latest ${IMAGE_NAME}:${{ github.sha }}
+          docker tag ${LOCAL_IMAGE} ${IMAGE_NAME}:${{ github.sha }}
         fi
         
         # Push the images
