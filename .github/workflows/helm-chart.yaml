@@ -62,6 +62,7 @@ jobs:
         
         # Checkout helm chart and the config directory it depends on
         git checkout main -- helm/git-change-operator/
+        git checkout main -- config/crd/bases/latest/
         git checkout main -- config/crd/bases/v1/
         
     - name: Update Chart versions
@@ -81,8 +82,8 @@ jobs:
         rm -rf helm/
         
         # Fix all broken symlinks dynamically
-        # Find all broken symlinks in crds/ and recreate them with correct paths
-        find crds/ -type l -exec test ! -e {} \; -print | while read -r broken_link; do
+        # Find all broken symlinks in crd-files/ and recreate them with correct paths
+        find crd-files/ -type l -exec test ! -e {} \; -print | while read -r broken_link; do
           # Get the original symlink target (relative to original location)
           original_target=$(readlink "$broken_link")
           # Convert ../../../config to ../config for new location

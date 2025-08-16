@@ -90,10 +90,10 @@ rbac:
       # Add more specific permissions as needed
 
 # CRD installation
-# Note: CRDs in the crds/ directory are automatically installed by Helm
-# This setting is for informational purposes and future compatibility
 crds:
-  # Specifies whether CRDs should be installed
+  # Specifies whether CRDs should be installed as part of Helm templates
+  # If true, CRDs are installed as regular Kubernetes resources (can be templated)
+  # If false, CRDs must be installed separately or from crds/ directory
   install: true
 
 # Metrics and monitoring

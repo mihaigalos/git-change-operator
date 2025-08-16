@@ -1,0 +1,5 @@
+{{- if .Values.crds.install }}
+{{- (.Files.Get "crd-files/gitcommit_crd.yaml") }}
+---
+{{- (.Files.Get "crd-files/pullrequest_crd.yaml") }}
+{{- end }}
