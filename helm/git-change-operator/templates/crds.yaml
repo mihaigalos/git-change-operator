@@ -1,5 +1,8 @@
 {{- if .Values.crds.install }}
+{{/* 
+During chart publishing, symlinks are replaced with actual CRD content
+This ensures each chart version contains the CRDs from that specific version
+*/}}
 {{- (.Files.Get "crd-files/gitcommit_crd.yaml") }}
----
 {{- (.Files.Get "crd-files/pullrequest_crd.yaml") }}
 {{- end }}

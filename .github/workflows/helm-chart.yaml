@@ -77,22 +77,37 @@ jobs:
         
     - name: Setup helm chart structure
       run: |
-        # Move helm chart to root and fix symlink paths
+        # Debug: Show current structure
+        echo "=== Before symlink replacement ==="
+        ls -la helm/git-change-operator/crd-files/
+        
+        # Replace symlinks with actual CRD content BEFORE moving chart
+        # This ensures each published chart version contains the CRDs from that specific version
+        find helm/git-change-operator/crd-files/ -type l | while read -r symlink; do
+          # Get the target file that the symlink points to
+          target_file=$(readlink -f "$symlink")
+          if [ -f "$target_file" ]; then
+            echo "Replacing symlink $symlink with actual content from $target_file"
+            rm -f "$symlink"
+            cp "$target_file" "$symlink"
+            echo "✓ Replaced $symlink"
+          else
+            echo "❌ Error: Target file $target_file not found for symlink $symlink"
+            exit 1
+          fi
+        done
+        
+        # Debug: Verify replacement worked
+        echo "=== After symlink replacement ==="
+        ls -la helm/git-change-operator/crd-files/
+        
+        # Now move helm chart to root
+        echo "=== Moving chart to root ==="
         mv helm/git-change-operator/* .
         rm -rf helm/
         
-        # Fix all broken symlinks dynamically
-        # Find all broken symlinks in crd-files/ and recreate them with correct paths
-        find crd-files/ -type l -exec test ! -e {} \; -print | while read -r broken_link; do
-          # Get the original symlink target (relative to original location)
-          original_target=$(readlink "$broken_link")
-          # Convert ../../../config to ../config for new location
-          new_target=$(echo "$original_target" | sed 's|^\.\./\.\./\.\./config|../config|')
-          # Recreate the symlink
-          rm -f "$broken_link"
-          ln -sf "$new_target" "$broken_link"
-          echo "Fixed symlink: $broken_link -> $new_target"
-        done
+        echo "=== Final structure ==="
+        ls -la .
         
     - name: Package and publish
       run: |
