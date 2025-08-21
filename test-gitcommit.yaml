@@ -1,0 +1,12 @@
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: test-commit
+  namespace: git-change-operator
+spec:
+  repoUrl: "https://github.com/mihaigalos/git-change-operator"
+  branch: "main"
+  message: "Test commit from Kind cluster"
+  files:
+  - path: "test.txt"
+    content: "Hello from Kind cluster!"

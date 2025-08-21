@@ -2,12 +2,35 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
+  extraMounts:
+  - hostPath: /Users/mihai.galos/certs/zscaler.pem
+    containerPath: /etc/ssl/certs/zscaler.pem
+    readOnly: true
+  - hostPath: /Users/mihai.galos/certs/zscaler.pem
+    containerPath: /usr/local/share/ca-certificates/zscaler.crt
+    readOnly: true
   kubeadmConfigPatches:
   - |
     kind: InitConfiguration
     nodeRegistration:
       kubeletExtraArgs:
         node-labels: "ingress-ready=true"
+        runtime-request-timeout: "15m"
+  - |
+    kind: ClusterConfiguration
+    apiServer:
+      extraArgs:
+        runtime-config: "api/all=true"
+    controllerManager:
+      extraArgs:
+        bind-address: "0.0.0.0"
+    scheduler:
+      extraArgs:
+        bind-address: "0.0.0.0"
+  - |
+    kind: KubeletConfiguration
+    serverTLSBootstrap: true
+    cgroupDriver: systemd
   extraPortMappings:
   - containerPort: 80
     hostPort: 80
