@@ -130,6 +130,11 @@ kind-create: ## Create Kind cluster with corporate proxy support
 	@echo "   Updating PATH to use homebrew kubectl..."
 	@echo "   Run: export PATH=\"/opt/homebrew/bin:\$$PATH\""
 
+kind-destroy: ## Delete Kind cluster and clean up
+	@echo "🧹 Cleaning up Kind cluster..."
+	kind delete cluster --name git-change-operator || echo "⚠️  Cluster already deleted"
+	@echo "✅ Kind cluster cleaned up!"
+
 kind-deploy: ## Deploy git-change-operator to Kind cluster with interactive token setup
 	@echo "🔧 Deploying git-change-operator to Kind cluster..."
 	@echo "   Ensuring PATH uses homebrew kubectl..."
@@ -255,11 +260,6 @@ kind-status: ## Show Kind cluster and operator status
 	echo "🎯 GitCommits:"; \
 	kubectl get gitcommit -n git-change-operator --context kind-git-change-operator || echo "📝 No GitCommit resources found"
 
-kind-clean: ## Delete Kind cluster and clean up
-	@echo "🧹 Cleaning up Kind cluster..."
-	kind delete cluster --name git-change-operator || echo "⚠️  Cluster already deleted"
-	@echo "✅ Kind cluster cleaned up!"
-
 kind-full-demo: kind-create kind-deploy kind-setup-token kind-demo kind-status ## Complete Kind demo workflow
 	@echo ""
 	@echo "🎉 Complete Kind Demo Workflow Finished!"
@@ -273,7 +273,7 @@ kind-full-demo: kind-create kind-deploy kind-setup-token kind-demo kind-status #
 	@echo "🔍 Next steps:"
 	@echo "   • Check operator logs: kubectl logs -n git-change-operator deployment/git-change-operator-controller-manager --context kind-git-change-operator"
 	@echo "   • Monitor GitCommit status: kubectl get gitcommit -n git-change-operator -w --context kind-git-change-operator"
-	@echo "   • Clean up when done: make kind-clean"
+	@echo "   • Clean up when done: make kind-destroy"
 
 ##@ Helm
 helm-lint: ## Lint the Helm chart
@@ -334,4 +334,4 @@ docs-clean: ## Clean built documentation and virtual environment
 	rm -rf site/
 	rm -rf docs/.venv/
 
-.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy kube-setup-token kind-create kind-deploy kind-setup-token kind-patch-operator kind-demo kind-load-image kind-restart-operator kind-build-and-test kind-status kind-clean kind-full-demo helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy docs-venv docs-deps docs-serve docs-serve-versioned docs-build docs-deploy docs-version-deploy docs-version-set-default docs-version-list docs-clean
+.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy kube-setup-token kind-create kind-deploy kind-setup-token kind-patch-operator kind-demo kind-load-image kind-restart-operator kind-build-and-test kind-status kind-destroy kind-destroy kind-full-demo helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy docs-venv docs-deps docs-serve docs-serve-versioned docs-build docs-deploy docs-version-deploy docs-version-set-default docs-version-list docs-clean
