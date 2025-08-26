@@ -119,7 +119,7 @@ deploy: docker-build docker-push install ## Build, push and deploy to cluster
 undeploy: uninstall ## Undeploy from cluster
 
 ##@ Kind Development
-kind-create: ## Create Kind cluster with corporate proxy support
+kind-create: # Create Kind cluster with corporate proxy support (hidden)
 	@echo "🚀 Creating Kind cluster with corporate CA support..."
 	@if [ ! -f "~/certs/zscaler.pem" ]; then \
 		echo "⚠️  Corporate CA certificate not found at ~/certs/zscaler.pem"; \
@@ -130,12 +130,12 @@ kind-create: ## Create Kind cluster with corporate proxy support
 	@echo "   Updating PATH to use homebrew kubectl..."
 	@echo "   Run: export PATH=\"/opt/homebrew/bin:\$$PATH\""
 
-kind-destroy: ## Delete Kind cluster and clean up
+kind-destroy: # Delete Kind cluster and clean up (hidden)
 	@echo "🧹 Cleaning up Kind cluster..."
 	kind delete cluster --name git-change-operator || echo "⚠️  Cluster already deleted"
 	@echo "✅ Kind cluster cleaned up!"
 
-kind-deploy: ## Deploy git-change-operator to Kind cluster with interactive token setup
+kind-deploy: # Deploy git-change-operator to Kind cluster with interactive token setup (hidden)
 	@echo "🔧 Deploying git-change-operator to Kind cluster..."
 	@echo "   Ensuring PATH uses homebrew kubectl..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
@@ -175,18 +175,18 @@ kube-setup-token: ## Interactively create GitHub token secret for any Kubernetes
 		--dry-run=client -o yaml | kubectl apply -f -; \
 	echo "✅ GitHub token secret created successfully!"
 
-kind-setup-token: ## Create GitHub token secret for Kind cluster
+kind-setup-token: # Create GitHub token secret for Kind cluster (hidden)
 	@echo "🔑 Setting up GitHub token for Kind cluster..."
 	@KUBE_CONTEXT="kind-git-change-operator" KUBE_NAMESPACE="git-change-operator" $(MAKE) kube-setup-token
 
-kind-patch-operator: ## Patch operator deployment to disable it for CRD-only testing
+kind-patch-operator: # Patch operator deployment to disable it for CRD-only testing (hidden)
 	@echo "🔧 Patching operator deployment for testing..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
 	echo "Scaling down operator deployment for CRD-only testing..."; \
 	kubectl scale deployment git-change-operator-controller-manager --replicas=0 -n git-change-operator --context kind-git-change-operator; \
 	echo "✅ Operator deployment scaled to 0. CRDs are available for testing without operator processing."
 
-kind-demo: ## Create a demo GitCommit resource
+kind-demo: # Create a demo GitCommit resource (hidden)
 	@echo "🎯 Creating demo GitCommit resource..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
 	echo "apiVersion: gco.galos.one/v1" > /tmp/demo-gitcommit.yaml; \
@@ -217,13 +217,13 @@ kind-demo: ## Create a demo GitCommit resource
 	echo "ℹ️  Note: Operator pod is not running, so GitCommit won't be processed."; \
 	echo "   To build and run the operator: make docker-build kind-load-image kind-restart-operator"
 
-kind-load-image: ## Load local Docker image into Kind cluster
+kind-load-image: # Load local Docker image into Kind cluster (hidden)
 	@echo "📦 Loading local operator image into Kind cluster..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
 	kind load docker-image ${IMG} --name git-change-operator; \
 	echo "✅ Image loaded into Kind cluster"
 
-kind-restart-operator: ## Restart operator deployment to pick up new image
+kind-restart-operator: # Restart operator deployment to pick up new image (hidden)
 	@echo "🔄 Restarting operator deployment..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
 	kubectl scale deployment git-change-operator-controller-manager --replicas=0 -n git-change-operator --context kind-git-change-operator; \
@@ -231,11 +231,11 @@ kind-restart-operator: ## Restart operator deployment to pick up new image
 	kubectl scale deployment git-change-operator-controller-manager --replicas=1 -n git-change-operator --context kind-git-change-operator; \
 	echo "✅ Operator deployment restarted"
 
-kind-build-and-test: docker-build kind-load-image kind-restart-operator ## Build operator image and test in Kind
+kind-build-and-test: docker-build kind-load-image kind-restart-operator # Build operator image and test in Kind (hidden)
 	@echo "🎉 Operator built and loaded into Kind cluster!"
 	@echo "   Monitor operator startup: kubectl logs -f deployment/git-change-operator-controller-manager -n git-change-operator --context kind-git-change-operator"
 
-kind-status: ## Show Kind cluster and operator status
+kind-status: # Show Kind cluster and operator status (hidden)
 	@echo "📊 Kind Cluster Status"
 	@echo "======================"
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
@@ -260,7 +260,7 @@ kind-status: ## Show Kind cluster and operator status
 	echo "🎯 GitCommits:"; \
 	kubectl get gitcommit -n git-change-operator --context kind-git-change-operator || echo "📝 No GitCommit resources found"
 
-kind-full-demo: kind-create kind-deploy kind-setup-token kind-demo kind-status ## Complete Kind demo workflow
+kind-full-demo: kind-create kind-deploy kind-load-image kind-setup-token kind-demo kind-status ## Complete Kind demo workflow
 	@echo ""
 	@echo "🎉 Complete Kind Demo Workflow Finished!"
 	@echo "========================================"
