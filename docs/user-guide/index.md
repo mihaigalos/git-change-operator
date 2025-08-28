@@ -9,6 +9,7 @@ If you're new to the Git Change Operator, start here:
 1. **[Installation](installation.md)** - Install the operator in your Kubernetes cluster
 2. **[Quick Start](quick-start.md)** - Create your first GitCommit resource
 3. **[Configuration](configuration.md)** - Configure authentication and operator settings
+4. **[Kind Full Demo](kind-demo.md)** - Complete end-to-end demo using Kind cluster
 
 ## Core Concepts
 
