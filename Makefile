@@ -4,6 +4,7 @@ SHELL := /bin/bash
 CHART_VERSION := $(shell grep '^version:' helm/git-change-operator/Chart.yaml | cut -d' ' -f2)
 APP_VERSION := $(shell grep '^appVersion:' helm/git-change-operator/Chart.yaml | cut -d' ' -f2 | tr -d '"')
 IMG ?= ghcr.io/mihaigalos/git-change-operator:$(APP_VERSION)-$(CHART_VERSION)
+IMG_LATEST ?= ghcr.io/mihaigalos/git-change-operator:latest
 
 KUBEBUILDER_ASSETS ?= $(shell pwd)/bin/kubebuilder/k8s/1.34.1-darwin-arm64
 SETUP_ENVTEST_INDEX ?= https://raw.githubusercontent.com/kubernetes-sigs/controller-tools/HEAD/envtest-releases.yaml
@@ -103,10 +104,11 @@ docker-build: ## Build docker image
 		$(if $(APK_MAIN_REPO_ARG),--build-arg APK_MAIN_REPO="$(APK_MAIN_REPO_ARG)") \
 		$(if $(APK_COMMUNITY_REPO_ARG),--build-arg APK_COMMUNITY_REPO="$(APK_COMMUNITY_REPO_ARG)") \
 		--build-arg CORPORATE_CA_CERT="$$CERT_CONTENT" \
-		-t ${IMG} .
+		-t ${IMG} -t ${IMG_LATEST} .
 
 docker-push: ## Push docker image
 	docker push ${IMG}
+	docker push ${IMG_LATEST}
 
 install: ## Install CRDs and RBAC to the cluster
 	kubectl apply -k config/
