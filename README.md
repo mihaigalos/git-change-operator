@@ -1,15 +1,12 @@
 # git-change-operator
 
-[![CI](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml)
-[![Docker Build](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml)
-[![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml)
-[![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml)
 
-&nbsp;
-![logo](docs/images/git-change-operator-logo.png)
-&nbsp;
+<img align="right" width="250px" src="docs/images/git-change-operator-logo.png">
 
-
+<!--   [![CI](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml) -->
+<!--   [![Docker Build](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml) -->
+<!--   [![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml) -->
+<!--   [![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml) -->
 
 A Kubernetes operator that enables automated Git operations from within your cluster. Commit files directly or reference existing Kubernetes resources (Secrets, ConfigMaps, etc.) and push them to Git repositories with flexible output strategies.
 
