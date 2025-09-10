@@ -12,8 +12,8 @@ copyright: Copyright &copy; 2025 Mihai Galos
 theme:
   name: material
   language: en
-  favicon: images/kubernetes-logo.svg
-  logo: images/kubernetes-logo.svg
+  favicon: images/git-change-operator-logo.png
+  logo: images/git-change-operator-logo.png
 
 
   palette:

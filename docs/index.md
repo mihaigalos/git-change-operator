@@ -4,4 +4,4 @@
 ![logo](images/git-change-operator-logo.png)
 &nbsp;
 
---8<-- "README.md:7:"
+--8<-- "README.md:10:"

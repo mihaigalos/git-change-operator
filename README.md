@@ -3,10 +3,10 @@
 
 <img align="right" width="250px" src="docs/images/git-change-operator-logo.png">
 
-<!--   [![CI](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml) -->
-<!--   [![Docker Build](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml) -->
-<!--   [![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml) -->
-<!--   [![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml) -->
+[![CI](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml)
+[![Docker Build](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml)
+[![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml)
+[![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml)
 
 A Kubernetes operator that enables automated Git operations from within your cluster. Commit files directly or reference existing Kubernetes resources (Secrets, ConfigMaps, etc.) and push them to Git repositories with flexible output strategies.
 
@@ -21,6 +21,35 @@ A Kubernetes operator that enables automated Git operations from within your clu
 - **Write Modes**: Overwrite or append to existing files
 - **Git Operations**: Support for both direct commits and pull requests
 - **Secure Authentication**: Uses Kubernetes Secrets for Git authentication
+
+## Minimal demo
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: resource-backup
+spec:
+  repository:
+    url: "https://github.com/your-username/k8s-backups.git"
+    branch: "main"
+
+  auth:
+    secretName: "git-credentials"
+
+  commit:
+    author: "Backup Operator <backup@example.com>"
+    message: "Automated backup of cluster resources"
+
+  resourceReferences:
+    # Backup ConfigMap as complete YAML
+    - name: "app-config"
+      apiVersion: "v1"
+      kind: "ConfigMap"
+      namespace: "default"
+      strategy: "dump"
+      output:
+        path: "backups/configmaps/app-config.yaml"
+```
 
 ## Resource Reference Capabilities
 
