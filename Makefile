@@ -296,28 +296,43 @@ helm-uninstall: ## Uninstall the operator using Helm
 helm-deploy: docker-build docker-push helm-package helm-install ## Build, push, package and deploy using Helm
 
 ##@ Documentation
-docs-venv: ## Create Python virtual environment for documentation
+docs-prepare: # Prepare README for MkDocs by temporarily removing docs/ prefix from links (hidden)
+	@echo "Backing up README.md and creating MkDocs-compatible version..."
+	@cp README.md README.md.bak
+	@sed -i.tmp 's|](docs/|](|g' README.md && rm README.md.tmp
+	@echo "README.md prepared for MkDocs (backup at README.md.bak)"
+
+docs-restore: # Restore original README.md after docs operations (hidden)
+	@if [ -f README.md.bak ]; then \
+		echo "Restoring original README.md..."; \
+		mv README.md.bak README.md; \
+		echo "README.md restored"; \
+	else \
+		echo "No backup found, skipping restore"; \
+	fi
+
+docs-venv: # Create Python virtual environment for documentation (hidden)
 	python3 -m venv docs/.venv
 	@echo "Virtual environment created at docs/.venv"
 	@echo "To activate manually: source docs/.venv/bin/activate"
 
-docs-deps: docs-venv ## Install documentation dependencies
+docs-deps: docs-venv # Install documentation dependencies (hidden)
 	docs/.venv/bin/pip install --upgrade pip
 	docs/.venv/bin/pip install -r docs/mkdocs/requirements.txt
 
-docs-serve: docs-deps ## Serve documentation locally for development
-	docs/.venv/bin/mkdocs serve
+docs-serve: docs-deps docs-prepare ## Serve documentation locally for development
+	docs/.venv/bin/mkdocs serve; $(MAKE) docs-restore
 
-docs-serve-versioned: docs-deps ## Serve versioned documentation locally
-	docs/.venv/bin/mike serve --dev-addr=127.0.0.1:8001
+docs-serve-versioned: docs-deps docs-prepare ## Serve versioned documentation locally
+	docs/.venv/bin/mike serve --dev-addr=127.0.0.1:8001; $(MAKE) docs-restore
 
-docs-build: docs-deps ## Build documentation for production
-	docs/.venv/bin/mkdocs build
+docs-build: docs-deps docs-prepare # Build documentation for production (hidden)
+	docs/.venv/bin/mkdocs build && $(MAKE) docs-restore
 
-docs-deploy: docs-deps ## Deploy documentation to GitHub Pages
+docs-deploy: docs-deps # Deploy documentation to GitHub Pages (hidden)
 	docs/.venv/bin/mkdocs gh-deploy --force
 
-docs-version-deploy: docs-deps ## Deploy a new version of documentation (usage: make docs-version-deploy VERSION=1.1.0)
+docs-version-deploy: docs-deps # Deploy a new version of documentation (usage: make docs-version-deploy VERSION=1.1.0) (hidden)
 ifndef VERSION
 	$(error VERSION is required. Usage: make docs-version-deploy VERSION=1.1.0)
 endif
