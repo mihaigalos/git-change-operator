@@ -28,6 +28,7 @@ apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: resource-backup
+  namespace: my-namespace
 spec:
   repository:
     url: "https://github.com/your-username/k8s-backups.git"
@@ -37,7 +38,7 @@ spec:
     secretName: "git-credentials"
 
   commit:
-    author: "Backup Operator <backup@example.com>"
+    author: "Git Change Operator <gco@example.com>"
     message: "Automated backup of cluster resources"
 
   resourceReferences:

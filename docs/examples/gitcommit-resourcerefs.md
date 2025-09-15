@@ -45,7 +45,7 @@ spec:
     secretName: "git-credentials"
     
   commit:
-    author: "Backup Operator <backup@example.com>"
+    author: "Git Change Operator <gco@example.com>"
     message: "Automated backup of cluster resources"
     
   resourceReferences:
