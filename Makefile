@@ -90,7 +90,8 @@ docker-build: ## Build docker image
 		CERT_CONTENT=""; \
 	fi; \
 	echo "Building Docker image with proxy configuration..."; \
-	docker build --network=host \
+	GIT_REFERENCE=$$(git config --get remote.origin.url | sed -E 's/^(git@|https:\/\/)([^:\/]+)[:\/](.+)\.git$$/https:\/\/\2\/\3/')/commit/$$(git rev-parse HEAD); \
+	docker build --progress=plain --network=host \
 		--build-arg HTTP_PROXY="${HTTP_PROXY}" \
 		--build-arg HTTPS_PROXY="${HTTPS_PROXY}" \
 		--build-arg NO_PROXY="${NO_PROXY}" \
@@ -104,6 +105,7 @@ docker-build: ## Build docker image
 		$(if $(APK_MAIN_REPO_ARG),--build-arg APK_MAIN_REPO="$(APK_MAIN_REPO_ARG)") \
 		$(if $(APK_COMMUNITY_REPO_ARG),--build-arg APK_COMMUNITY_REPO="$(APK_COMMUNITY_REPO_ARG)") \
 		--build-arg CORPORATE_CA_CERT="$$CERT_CONTENT" \
+		--build-arg GIT_REFERENCE="$$GIT_REFERENCE" \
 		-t ${IMG} -t ${IMG_LATEST} .
 
 docker-push: ## Push docker image

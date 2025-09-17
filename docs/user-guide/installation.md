@@ -14,7 +14,7 @@ Before installing the Git Change Operator, ensure you have:
 
 ## Installation Methods
 
-### Helm Installation (Recommended)
+### Helm Installation from upstream (Recommended)
 
 The easiest way to install the Git Change Operator is using Helm:
 
@@ -28,6 +28,22 @@ helm install git-change-operator git-change-operator/git-change-operator \
   --namespace git-change-operator-system \
   --create-namespace
 ```
+
+### Helm installation from the operator container
+
+The git-change-operator Docker image includes the Helm chart for easy deployment without needing to clone the repository.
+
+```bash
+# Extract the chart from the image
+docker create --name temp-container ghcr.io/mihaigalos/git-change-operator:latest
+docker cp temp-container:/helm/git-change-operator ./chart
+docker rm temp-container
+
+# Use the extracted chart with Helm
+helm install git-change-operator ./chart --namespace git-change-operator-system --create-namespace
+```
+
+The Helm chart is located at `/helm/git-change-operator` in the Docker image.
 
 ### kubectl Installation
 

@@ -34,8 +34,22 @@ RUN go mod download
 COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
+COPY helm/ helm/
+COPY config/crd/bases/ config/crd/bases/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -o manager main.go && chmod +x manager
+
+# Resolve symlinks in Helm chart to avoid broken symlinks in final image
+RUN mkdir -p /workspace/helm-resolved && \
+    cp -r helm/git-change-operator/* /workspace/helm-resolved/ && \
+    find /workspace/helm-resolved -type l | while read -r symlink; do \
+        link_target=$(readlink "$symlink"); \
+        basename_target=$(basename "$link_target"); \
+        actual_file=$(find /workspace -name "$basename_target" -type f 2>/dev/null | head -1); \
+        if [ -n "$actual_file" ] && [ -f "$actual_file" ]; then \
+            rm -f "$symlink" && cp "$actual_file" "$symlink"; \
+        fi; \
+    done
 
 #----------------------------------------------------------------------------------------------
 FROM alpine:3.18
@@ -47,6 +61,11 @@ ARG APK_COMMUNITY_REPO
 # Accept build arg for corporate certificate content (passed from builder stage)
 ARG CORPORATE_CA_CERT
 
+# Upstream Ref
+ARG GIT_REFERENCE
+LABEL git-ref="$GIT_REFERENCE" \
+      org.opencontainers.image.source="$GIT_REFERENCE"
+
 # Configure Alpine repositories if custom ones are provided
 RUN if [ -n "$APK_MAIN_REPO" ] && [ -n "$APK_COMMUNITY_REPO" ]; then \
         echo "$APK_MAIN_REPO" > /etc/apk/repositories && \
@@ -54,7 +73,8 @@ RUN if [ -n "$APK_MAIN_REPO" ] && [ -n "$APK_COMMUNITY_REPO" ]; then \
     fi
 
 # Install ca-certificates first
-RUN apk --no-cache add ca-certificates curl
+RUN apk --no-cache add ca-certificates \
+    && echo "curl bash helm"
 
 # Install corporate certificate from build arg AFTER ca-certificates is installed
 RUN if [ -n "$CORPORATE_CA_CERT" ]; then \
@@ -64,12 +84,17 @@ RUN if [ -n "$CORPORATE_CA_CERT" ]; then \
     else \
         echo "No corporate certificate provided in build arg"; \
     fi
-WORKDIR /
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /workspace/manager /manager
-RUN chmod +x /manager
+RUN addgroup -S user && adduser -S user -G user
+WORKDIR /home/user
 
-# Copy Helm chart for easy extraction
-COPY helm/git-change-operator /helm/git-change-operator
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /workspace/manager /home/user/manager
+RUN chmod +x /home/user/manager
+
+# Copy resolved Helm chart (without broken symlinks)
+COPY --from=builder /workspace/helm-resolved /home/user/helm/git-change-operator
+
+USER user
+RUN echo ${GIT_REFERENCE} > git_reference
 
 ENTRYPOINT ["/manager"]
