@@ -97,4 +97,4 @@ COPY --from=builder /workspace/helm-resolved /home/user/helm/git-change-operator
 USER user
 RUN echo ${GIT_REFERENCE} > git_reference
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["/home/user/manager"]

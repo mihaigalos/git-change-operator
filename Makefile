@@ -134,11 +134,6 @@ kind-create: # Create Kind cluster with corporate proxy support (hidden)
 	@echo "   Updating PATH to use homebrew kubectl..."
 	@echo "   Run: export PATH=\"/opt/homebrew/bin:\$$PATH\""
 
-kind-destroy: # Delete Kind cluster and clean up (hidden)
-	@echo "🧹 Cleaning up Kind cluster..."
-	kind delete cluster --name git-change-operator || echo "⚠️  Cluster already deleted"
-	@echo "✅ Kind cluster cleaned up!"
-
 kind-deploy: # Deploy git-change-operator to Kind cluster with interactive token setup (hidden)
 	@echo "🔧 Deploying git-change-operator to Kind cluster..."
 	@echo "   Ensuring PATH uses homebrew kubectl..."
@@ -155,8 +150,7 @@ kind-deploy: # Deploy git-change-operator to Kind cluster with interactive token
 	echo; \
 	echo "🔑 Now let's set up your GitHub token for testing..."
 
-##@ Kubernetes
-kube-setup-token: ## Interactively create GitHub token secret for any Kubernetes context
+kube-setup-token: # Interactively create GitHub token secret for any Kubernetes context (hidden)
 	@echo "🔑 Setting up GitHub authentication..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
 	KUBE_CONTEXT=$${KUBE_CONTEXT:-$$(kubectl config current-context)}; \
@@ -262,7 +256,30 @@ kind-status: # Show Kind cluster and operator status (hidden)
 	kubectl get secrets -n git-change-operator --context kind-git-change-operator || echo "❌ No secrets found"; \
 	echo; \
 	echo "🎯 GitCommits:"; \
-	kubectl get gitcommit -n git-change-operator --context kind-git-change-operator || echo "📝 No GitCommit resources found"
+	kubectl get gitcommit -n git-change-operator --context kind-git-change-operator || echo "📝 No GitCommit resources found"; \
+	echo; \
+	echo "🔍 GitCommit Status Details:"; \
+	GITCOMMIT_NAME=$$(kubectl get gitcommit -n git-change-operator --context kind-git-change-operator -o name 2>/dev/null | head -1); \
+	if [ -n "$$GITCOMMIT_NAME" ]; then \
+		echo "Checking commit phase and SHA for: $$GITCOMMIT_NAME"; \
+		COMMIT_PHASE=$$(kubectl get $$GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown"); \
+		COMMIT_SHA=$$(kubectl get $$GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o jsonpath='{.status.commitSHA}' 2>/dev/null || echo "Not available"); \
+		echo "  📋 Phase: $$COMMIT_PHASE"; \
+		echo "  🔗 Commit SHA: $$COMMIT_SHA"; \
+		if [ "$$COMMIT_PHASE" = "Committed" ] && [ -n "$$COMMIT_SHA" ] && [ "$$COMMIT_SHA" != "Not available" ]; then \
+			echo "  ✅ Commit successfully completed with SHA: $$COMMIT_SHA"; \
+		elif [ "$$COMMIT_PHASE" = "InProgress" ]; then \
+			echo "  ⏳ Commit in progress..."; \
+		else \
+			echo "  ❌ Commit failed"; \
+			ERROR_MSG=$$(kubectl get $$GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o jsonpath='{.status.error}' 2>/dev/null); \
+			if [ -n "$$ERROR_MSG" ]; then \
+				echo "  💬 Error: $$ERROR_MSG"; \
+			fi; \
+		fi; \
+	else \
+		echo "No GitCommit resources found to check"; \
+	fi
 
 kind-full-demo: kind-create kind-deploy kind-load-image kind-setup-token kind-demo kind-status ## Complete Kind demo workflow
 	@echo ""
@@ -278,6 +295,11 @@ kind-full-demo: kind-create kind-deploy kind-load-image kind-setup-token kind-de
 	@echo "   • Check operator logs: kubectl logs -n git-change-operator deployment/git-change-operator-controller-manager --context kind-git-change-operator"
 	@echo "   • Monitor GitCommit status: kubectl get gitcommit -n git-change-operator -w --context kind-git-change-operator"
 	@echo "   • Clean up when done: make kind-destroy"
+
+kind-destroy: ## Delete Kind cluster and clean up
+	@echo "🧹 Cleaning up Kind cluster..."
+	kind delete cluster --name git-change-operator || echo "⚠️  Cluster already deleted"
+	@echo "✅ Kind cluster cleaned up!"
 
 ##@ Helm
 helm-lint: ## Lint the Helm chart
@@ -326,7 +348,7 @@ docs-serve: docs-deps docs-prepare ## Serve documentation locally for developmen
 	docs/.venv/bin/mkdocs serve; $(MAKE) docs-restore
 
 docs-serve-versioned: docs-deps docs-prepare ## Serve versioned documentation locally
-	docs/.venv/bin/mike serve --dev-addr=127.0.0.1:8001; $(MAKE) docs-restore
+	source docs/.venv/bin/activate && mike serve --dev-addr=127.0.0.1:8001; $(MAKE) docs-restore
 
 docs-build: docs-deps docs-prepare # Build documentation for production (hidden)
 	docs/.venv/bin/mkdocs build && $(MAKE) docs-restore
@@ -334,11 +356,11 @@ docs-build: docs-deps docs-prepare # Build documentation for production (hidden)
 docs-deploy: docs-deps # Deploy documentation to GitHub Pages (hidden)
 	docs/.venv/bin/mkdocs gh-deploy --force
 
-docs-version-deploy: docs-deps # Deploy a new version of documentation (usage: make docs-version-deploy VERSION=1.1.0) (hidden)
+docs-version-deploy: docs-deps docs-prepare # Deploy a new version of documentation (usage: make docs-version-deploy VERSION=1.1.0) (hidden)
 ifndef VERSION
 	$(error VERSION is required. Usage: make docs-version-deploy VERSION=1.1.0)
 endif
-	docs/.venv/bin/mike deploy --push --update-aliases $(VERSION) latest
+	source docs/.venv/bin/activate && mike deploy --push --update-aliases $(VERSION) latest && $(MAKE) docs-restore
 
 docs-version-set-default: docs-deps ## Set default version for documentation (usage: make docs-version-set-default VERSION=1.0.0)
 ifndef VERSION
