@@ -52,6 +52,14 @@ spec:
         path: "backups/configmaps/app-config.yaml"
 ```
 
+## Minimal demo using self-hosted Kind cluster
+
+Please have a token (preferably fine-grained) with fine-grained permissions ready, the following step asks for it:
+
+```bash
+make kind-full-demo
+```
+
 ## Resource Reference Capabilities
 
 The operator can reference any Kubernetes resource and extract its data using various strategies:

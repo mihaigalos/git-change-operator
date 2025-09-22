@@ -262,20 +262,37 @@ kind-status: # Show Kind cluster and operator status (hidden)
 	GITCOMMIT_NAME=$$(kubectl get gitcommit -n git-change-operator --context kind-git-change-operator -o name 2>/dev/null | head -1); \
 	if [ -n "$$GITCOMMIT_NAME" ]; then \
 		echo "Checking commit phase and SHA for: $$GITCOMMIT_NAME"; \
-		COMMIT_PHASE=$$(kubectl get $$GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown"); \
-		COMMIT_SHA=$$(kubectl get $$GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o jsonpath='{.status.commitSHA}' 2>/dev/null || echo "Not available"); \
-		echo "  📋 Phase: $$COMMIT_PHASE"; \
-		echo "  🔗 Commit SHA: $$COMMIT_SHA"; \
-		if [ "$$COMMIT_PHASE" = "Committed" ] && [ -n "$$COMMIT_SHA" ] && [ "$$COMMIT_SHA" != "Not available" ]; then \
-			echo "  ✅ Commit successfully completed with SHA: $$COMMIT_SHA"; \
-		elif [ "$$COMMIT_PHASE" = "InProgress" ]; then \
-			echo "  ⏳ Commit in progress..."; \
-		else \
-			echo "  ❌ Commit failed"; \
-			ERROR_MSG=$$(kubectl get $$GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o jsonpath='{.status.error}' 2>/dev/null); \
-			if [ -n "$$ERROR_MSG" ]; then \
-				echo "  💬 Error: $$ERROR_MSG"; \
+		echo "⏳ Monitoring commit status (polling for up to 10 seconds)..."; \
+		ATTEMPTS=0; \
+		MAX_ATTEMPTS=10; \
+		while [ $$ATTEMPTS -lt $$MAX_ATTEMPTS ]; do \
+			COMMIT_PHASE=$$(kubectl get $$GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown"); \
+			COMMIT_SHA=$$(kubectl get $$GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o jsonpath='{.status.commitSHA}' 2>/dev/null || echo "Not available"); \
+			echo "  📋 Attempt $$((ATTEMPTS + 1))/$$MAX_ATTEMPTS - Phase: $$COMMIT_PHASE, SHA: $$COMMIT_SHA"; \
+			if [ "$$COMMIT_PHASE" = "Committed" ] && [ -n "$$COMMIT_SHA" ] && [ "$$COMMIT_SHA" != "Not available" ]; then \
+				echo "  ✅ Commit successfully completed with SHA: $$COMMIT_SHA"; \
+				break; \
+			elif [ "$$COMMIT_PHASE" = "Failed" ]; then \
+				echo "  ❌ Commit failed"; \
+				ERROR_MSG=$$(kubectl get $$GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o jsonpath='{.status.message}' 2>/dev/null); \
+				if [ -n "$$ERROR_MSG" ]; then \
+					echo "  💬 Message: $$ERROR_MSG"; \
+				fi; \
+				break; \
+			elif [ "$$COMMIT_PHASE" = "Running" ]; then \
+				echo "  🔄 Commit is running, waiting..."; \
+			elif [ "$$COMMIT_PHASE" = "Pending" ]; then \
+				echo "  ⏸️ Commit is pending, waiting to start..."; \
+			else \
+				echo "  ❓ Unknown status: $$COMMIT_PHASE, waiting..."; \
 			fi; \
+			ATTEMPTS=$$((ATTEMPTS + 1)); \
+			if [ $$ATTEMPTS -lt $$MAX_ATTEMPTS ]; then \
+				sleep 3; \
+			fi; \
+		done; \
+		if [ $$ATTEMPTS -eq $$MAX_ATTEMPTS ] && [ "$$COMMIT_PHASE" != "Committed" ] && [ "$$COMMIT_PHASE" != "Failed" ]; then \
+			echo "  ⏰ Timeout: Commit still processing after 10 seconds. Check logs for details."; \
 		fi; \
 	else \
 		echo "No GitCommit resources found to check"; \
@@ -347,7 +364,7 @@ docs-deps: docs-venv # Install documentation dependencies (hidden)
 docs-serve: docs-deps docs-prepare ## Serve documentation locally for development
 	docs/.venv/bin/mkdocs serve; $(MAKE) docs-restore
 
-docs-serve-versioned: docs-deps docs-prepare ## Serve versioned documentation locally
+docs-serve-versioned: docs-deps docs-prepare ## Serve versioned documentation locally. Overwrite with make docs-serve-versioned VERSION=1.0.0
 	source docs/.venv/bin/activate && mike serve --dev-addr=127.0.0.1:8001; $(MAKE) docs-restore
 
 docs-build: docs-deps docs-prepare # Build documentation for production (hidden)
