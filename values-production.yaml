@@ -1,0 +1,84 @@
+# Production values for git-change-operator
+# This configuration uses minimal, specific RBAC permissions
+
+# Use specific RBAC permissions instead of wildcards
+rbac:
+  create: true
+  additionalReadPermissions:
+    # Disable wildcard permissions for security
+    enableWildcard: false
+    
+    # Grant only specific permissions needed by your use case
+    specificPermissions:
+      # Core Kubernetes resources
+      - apiGroups: [""]
+        resources: 
+          - "configmaps"
+          - "secrets" 
+          - "pods"
+          - "services"
+          - "persistentvolumeclaims"
+          
+      # Application resources  
+      - apiGroups: ["apps"]
+        resources:
+          - "deployments"
+          - "replicasets" 
+          - "statefulsets"
+          - "daemonsets"
+          
+      # Networking resources
+      - apiGroups: ["networking.k8s.io"]
+        resources:
+          - "ingresses"
+          - "networkpolicies"
+          
+      # Storage resources
+      - apiGroups: ["storage.k8s.io"]  
+        resources:
+          - "storageclasses"
+          - "volumeattachments"
+          
+      # RBAC resources (if needed for compliance reporting)
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        resources:
+          - "roles"
+          - "rolebindings" 
+          - "clusterroles"
+          - "clusterrolebindings"
+          
+      # Custom resources (add your CRDs here)
+      # - apiGroups: ["custom.example.com"]
+      #   resources: ["mycustomresources"]
+
+# Production security settings
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+
+# Resource limits for production
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
+
+# Monitoring for production
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    
+# Production logging
+operator:
+  logLevel: info
+  leaderElect: true

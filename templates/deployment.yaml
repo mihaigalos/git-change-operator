@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "git-change-operator.fullname" . }}-controller-manager
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "git-change-operator.labels" . | nindent 4 }}
+    control-plane: controller-manager
+    app.kubernetes.io/component: manager
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "git-change-operator.selectorLabels" . | nindent 6 }}
+      control-plane: controller-manager
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "git-change-operator.selectorLabels" . | nindent 8 }}
+        control-plane: controller-manager
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "git-change-operator.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: manager
+        image: {{ include "git-change-operator.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        - --leader-elect={{ .Values.operator.leaderElect }}
+        - --metrics-bind-address={{ .Values.operator.metricsAddr }}
+        - --health-probe-bind-address={{ .Values.operator.probeAddr }}
+        {{- if ne .Values.operator.logLevel "info" }}
+        - --log-level={{ .Values.operator.logLevel }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.operator.probeAddr | regexFind "[0-9]+" }}
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: {{ .Values.operator.probeAddr | regexFind "[0-9]+" }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        {{- if .Values.metrics.enabled }}
+        ports:
+        - containerPort: {{ .Values.operator.metricsAddr | regexFind "[0-9]+" }}
+          name: metrics
+          protocol: TCP
+        - containerPort: {{ .Values.operator.probeAddr | regexFind "[0-9]+" }}
+          name: health
+          protocol: TCP
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+      volumes:
+      - emptyDir: {}
+        name: tmp
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 10

@@ -1,0 +1,24 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "git-change-operator.fullname" . }}-metrics
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "git-change-operator.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics
+  {{- with .Values.metrics.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.metrics.service.type }}
+  ports:
+  - name: metrics
+    port: {{ .Values.metrics.service.port }}
+    targetPort: {{ .Values.operator.metricsAddr | regexFind "[0-9]+" }}
+    protocol: TCP
+  selector:
+    {{- include "git-change-operator.selectorLabels" . | nindent 4 }}
+    control-plane: controller-manager
+{{- end }}

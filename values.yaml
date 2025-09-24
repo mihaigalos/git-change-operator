@@ -1,0 +1,130 @@
+# Default values for git-change-operator
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Operator image configuration
+image:
+  repository: ghcr.io/mihaigalos/git-change-operator
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  # When not specified, uses chart appVersion (which creates appVersion-chartVersion tag)
+  tag: ""
+
+# Image pull secrets for private registries
+imagePullSecrets: []
+
+# Name override for the chart
+nameOverride: ""
+fullnameOverride: ""
+
+# Operator deployment configuration
+replicaCount: 1
+
+# Service account configuration
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  # fsGroup: 2000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65532
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+# Node selector for pod assignment
+nodeSelector: {}
+
+# Tolerations for pod assignment
+tolerations: []
+
+# Affinity for pod assignment
+affinity: {}
+
+# RBAC configuration
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+  
+  # Additional permissions for reading Kubernetes resources
+  # WARNING: The default "*" permissions are overly broad for security
+  # Configure specific resources that the operator needs to read
+  additionalReadPermissions:
+    # Enable broad read permissions (NOT recommended for production)
+    enableWildcard: true
+    
+    # Specific API groups and resources the operator can read
+    # Only used if enableWildcard is false
+    specificPermissions:
+      - apiGroups: [""]
+        resources: ["configmaps", "secrets", "pods", "services"]
+      - apiGroups: ["apps"]
+        resources: ["deployments", "replicasets", "statefulsets"]
+      - apiGroups: ["networking.k8s.io"]
+        resources: ["ingresses", "networkpolicies"]
+      # Add more specific permissions as needed
+
+# CRD installation
+crds:
+  # Specifies whether CRDs should be installed as part of Helm templates
+  # If true, CRDs are installed as regular Kubernetes resources (can be templated)
+  # If false, CRDs must be installed separately or from crds/ directory
+  install: true
+
+# Metrics and monitoring
+metrics:
+  # Enable metrics endpoint
+  enabled: true
+  # Service for metrics
+  service:
+    type: ClusterIP
+    port: 8080
+    annotations: {}
+  # ServiceMonitor for Prometheus Operator
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+    annotations: {}
+
+# Operator configuration
+operator:
+  # Log level (debug, info, warn, error)
+  logLevel: info
+  # Metrics bind address
+  metricsAddr: :8080
+  # Health probe bind address
+  probeAddr: :8081
+  # Leader election
+  leaderElect: false
+
+# Webhook configuration (if implemented in future)
+webhook:
+  enabled: false
+  port: 9443
