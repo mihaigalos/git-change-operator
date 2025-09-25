@@ -66,6 +66,67 @@ When configuring Git authentication:
 3. **Rotate regularly**: Implement regular credential rotation
 4. **Audit access**: Monitor and audit Git repository access
 
+## File Encryption Security
+
+The operator supports age-based encryption for protecting sensitive files before committing to Git repositories:
+
+### Encryption Key Management
+
+**🔐 Best Practices for Encryption Keys:**
+
+1. **Use separate keys per environment**: Different keys for dev/staging/production
+2. **Store keys securely**: Use Kubernetes Secrets with proper RBAC restrictions
+3. **Rotate keys regularly**: Implement key rotation procedures
+4. **Prefer SSH/age keys over passphrases**: SSH and age keys provide better security than shared passphrases
+5. **Document key ownership**: Maintain records of who has access to which keys
+
+### Secure Secret Configuration
+
+```yaml
+# Restrict access to encryption secrets
+apiVersion: v1
+kind: Secret
+metadata:
+  name: encryption-keys
+  namespace: secure-namespace
+  labels:
+    encryption.gco.galos.one/purpose: "file-encryption"
+type: Opaque
+data:
+  id_rsa.pub: <base64-encoded-ssh-public-key>
+  
+---
+# Create RBAC to limit access to encryption secrets
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: encryption-secret-access
+  namespace: secure-namespace
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["encryption-keys"]
+  verbs: ["get"]
+```
+
+### Encryption Security Benefits
+
+- **Repository Safety**: Sensitive files can be safely committed to public repositories
+- **Compliance**: Meet security requirements for storing secrets in version control
+- **Audit Trail**: Git history provides encryption timestamps and accountability
+- **Access Control**: Only users with decryption keys can access sensitive content
+- **Zero Trust**: Assume Git repositories may be compromised; encrypted files remain secure
+
+### Security Considerations
+
+⚠️ **Important Security Notes:**
+
+- Encryption keys stored in Kubernetes Secrets are only as secure as your cluster's security
+- Consider using external secret management systems (HashiCorp Vault, AWS Secrets Manager, etc.)
+- Encrypted files are still visible in Git history; consider using separate repositories for highly sensitive data
+- Test decryption processes regularly to ensure keys remain valid
+- Implement backup and recovery procedures for encryption keys
+
 ## Additional Resources
 
 - [Helm Chart Configuration](https://github.com/mihaigalos/git-change-operator/tree/main/helm/git-change-operator)

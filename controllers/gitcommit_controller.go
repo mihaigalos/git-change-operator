@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	gitv1 "github.com/mihaigalos/git-change-operator/api/v1"
+	"github.com/mihaigalos/git-change-operator/pkg/encryption"
 )
 
 type GitCommitReconciler struct {
@@ -154,17 +155,30 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 	}
 
 	for _, file := range gitCommit.Spec.Files {
-		filePath := filepath.Join(tempDir, file.Path)
+		content := []byte(file.Content)
+		targetPath := file.Path
+
+		// Encrypt content if encryption is enabled
+		if encryption.ShouldEncryptFile(file.Path, gitCommit.Spec.Encryption) {
+			encryptedContent, err := r.encryptFileContent(ctx, content, gitCommit.Spec.Encryption, gitCommit.Namespace)
+			if err != nil {
+				return "", fmt.Errorf("failed to encrypt file %s: %w", file.Path, err)
+			}
+			content = encryptedContent
+			targetPath = encryption.GetEncryptedFilePath(file.Path, gitCommit.Spec.Encryption)
+		}
+
+		filePath := filepath.Join(tempDir, targetPath)
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return "", err
 		}
 
-		if err := ioutil.WriteFile(filePath, []byte(file.Content), 0644); err != nil {
+		if err := ioutil.WriteFile(filePath, content, 0644); err != nil {
 			return "", err
 		}
 
-		if _, err := w.Add(file.Path); err != nil {
+		if _, err := w.Add(targetPath); err != nil {
 			return "", err
 		}
 	}
@@ -177,17 +191,14 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 		}
 
 		for _, file := range resourceFiles {
-			filePath := filepath.Join(tempDir, file.Path)
-			dir := filepath.Dir(filePath)
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				return "", err
-			}
-
+			targetPath := file.Path
+			
 			// Handle write modes
 			var content []byte
 			if resourceRef.Strategy.WriteMode == gitv1.WriteModeAppend {
 				// Read existing file if it exists
-				if existingContent, err := ioutil.ReadFile(filePath); err == nil {
+				tempFilePath := filepath.Join(tempDir, file.Path)
+				if existingContent, err := ioutil.ReadFile(tempFilePath); err == nil {
 					content = append(existingContent, []byte("\n"+file.Content)...)
 				} else {
 					content = []byte(file.Content)
@@ -197,11 +208,27 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 				content = []byte(file.Content)
 			}
 
+			// Encrypt content if encryption is enabled
+			if encryption.ShouldEncryptFile(file.Path, gitCommit.Spec.Encryption) {
+				encryptedContent, err := r.encryptFileContent(ctx, content, gitCommit.Spec.Encryption, gitCommit.Namespace)
+				if err != nil {
+					return "", fmt.Errorf("failed to encrypt resource file %s: %w", file.Path, err)
+				}
+				content = encryptedContent
+				targetPath = encryption.GetEncryptedFilePath(file.Path, gitCommit.Spec.Encryption)
+			}
+
+			filePath := filepath.Join(tempDir, targetPath)
+			dir := filepath.Dir(filePath)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return "", err
+			}
+
 			if err := ioutil.WriteFile(filePath, content, 0644); err != nil {
 				return "", err
 			}
 
-			if _, err := w.Add(file.Path); err != nil {
+			if _, err := w.Add(targetPath); err != nil {
 				return "", err
 			}
 		}
@@ -345,6 +372,60 @@ func (r *GitCommitReconciler) processResourceRef(ctx context.Context, resourceRe
 	}
 
 	return files, nil
+}
+
+func (r *GitCommitReconciler) encryptFileContent(ctx context.Context, content []byte, encryptionConfig *gitv1.Encryption, namespace string) ([]byte, error) {
+	if encryptionConfig == nil || !encryptionConfig.Enabled {
+		return content, nil
+	}
+
+	// Resolve recipients (including secret references)
+	resolvedRecipients, err := r.resolveRecipients(ctx, encryptionConfig.Recipients, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve recipients: %w", err)
+	}
+
+	// Create encryptor
+	encryptor, err := encryption.NewEncryptor(resolvedRecipients)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create encryptor: %w", err)
+	}
+
+	// Encrypt the content
+	return encryptor.Encrypt(content)
+}
+
+func (r *GitCommitReconciler) resolveRecipients(ctx context.Context, recipients []gitv1.Recipient, namespace string) ([]gitv1.Recipient, error) {
+	var resolved []gitv1.Recipient
+
+	for _, recipient := range recipients {
+		if recipient.SecretRef != nil {
+			// Resolve value from secret
+			var secret corev1.Secret
+			if err := r.Get(ctx, types.NamespacedName{Name: recipient.SecretRef.Name, Namespace: namespace}, &secret); err != nil {
+				return nil, fmt.Errorf("failed to get secret %s: %w", recipient.SecretRef.Name, err)
+			}
+
+			key := recipient.SecretRef.Key
+			if key == "" {
+				key = "publicKey"
+			}
+
+			value, exists := secret.Data[key]
+			if !exists {
+				return nil, fmt.Errorf("key %s not found in secret %s", key, recipient.SecretRef.Name)
+			}
+
+			resolved = append(resolved, gitv1.Recipient{
+				Type:  recipient.Type,
+				Value: string(value),
+			})
+		} else {
+			resolved = append(resolved, recipient)
+		}
+	}
+
+	return resolved, nil
 }
 
 func (r *GitCommitReconciler) SetupWithManager(mgr ctrl.Manager) error {

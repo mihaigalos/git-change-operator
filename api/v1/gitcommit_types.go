@@ -12,6 +12,7 @@ type GitCommitSpec struct {
 	CommitMessage string        `json:"commitMessage"`
 	AuthSecretRef string        `json:"authSecretRef"`
 	AuthSecretKey string        `json:"authSecretKey,omitempty"`
+	Encryption    *Encryption   `json:"encryption,omitempty"`
 }
 
 type File struct {
@@ -37,6 +38,31 @@ type OutputStrategy struct {
 type FieldRef struct {
 	Key      string `json:"key"`
 	FileName string `json:"fileName,omitempty"`
+}
+
+type Encryption struct {
+	Enabled       bool             `json:"enabled"`
+	Recipients    []Recipient      `json:"recipients,omitempty"`
+	FileExtension string           `json:"fileExtension,omitempty"`
+}
+
+type Recipient struct {
+	Type      RecipientType `json:"type"`
+	Value     string        `json:"value,omitempty"`
+	SecretRef *SecretRef    `json:"secretRef,omitempty"`
+}
+
+type RecipientType string
+
+const (
+	RecipientTypeAge        RecipientType = "age"
+	RecipientTypeSSH        RecipientType = "ssh"
+	RecipientTypePassphrase RecipientType = "passphrase"
+)
+
+type SecretRef struct {
+	Name string `json:"name"`
+	Key  string `json:"key,omitempty"`
 }
 
 type OutputType string

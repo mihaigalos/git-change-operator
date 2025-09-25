@@ -295,6 +295,182 @@ spec:
     path: "secrets/shared.yaml"
 ```
 
+## File Encryption
+
+Protect sensitive files by encrypting them before committing to Git repositories using age encryption:
+
+### Basic Encryption with SSH Key
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: encrypted-secrets
+  namespace: default
+spec:
+  repository: "https://github.com/myorg/secure-configs.git"
+  branch: "main"
+  authSecretRef: "git-credentials"
+  commitMessage: "Add encrypted database configuration"
+  
+  encryption:
+    enabled: true
+    recipients:
+      - type: ssh
+        secretRef:
+          name: ssh-keys
+          key: id_rsa.pub
+  
+  files:
+    - path: "database/production.yaml"
+      content: |
+        database:
+          host: prod-db.internal
+          username: app_user
+          password: super-secret-password
+          ssl_key: |
+            -----BEGIN PRIVATE KEY-----
+            MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC...
+            -----END PRIVATE KEY-----
+```
+
+### Multiple Recipient Types
+
+Support for different encryption methods in a single GitCommit:
+
+```yaml
+spec:
+  encryption:
+    enabled: true
+    fileExtension: ".secret"  # Custom extension (default: .age)
+    recipients:
+      # Age public key
+      - type: age
+        secretRef:
+          name: age-keys
+          key: team-public-key
+      
+      # SSH public key (from authorized_keys format)
+      - type: ssh
+        secretRef:
+          name: ssh-keys
+          key: id_rsa.pub
+      
+      # Passphrase-based encryption
+      - type: passphrase
+        secretRef:
+          name: encryption-secrets
+          key: backup-passphrase
+
+  resourceRefs:
+    - apiVersion: v1
+      kind: Secret
+      name: database-credentials
+      namespace: production
+      path: "secrets/database.yaml"
+      # Will be encrypted as secrets/database.yaml.secret
+```
+
+### Encrypted Resource References
+
+Encrypt sensitive data from Kubernetes resources:
+
+```yaml
+spec:
+  encryption:
+    enabled: true
+    recipients:
+      - type: age
+        secretRef:
+          name: backup-keys
+          key: public-key
+
+  resourceRefs:
+    # Encrypt TLS certificates
+    - apiVersion: v1
+      kind: Secret
+      name: tls-cert
+      namespace: ingress-system
+      path: "certificates/tls.yaml"
+    
+    # Encrypt database connection strings
+    - apiVersion: v1
+      kind: ConfigMap
+      name: database-config
+      namespace: app
+      path: "config/database.yaml"
+    
+    # Encrypt API keys and tokens
+    - apiVersion: v1
+      kind: Secret
+      name: api-credentials
+      namespace: integration
+      path: "secrets/api-keys.yaml"
+      strategy: "fields"  # Extract individual fields as encrypted files
+```
+
+### Setting Up Encryption Secrets
+
+Create the necessary secrets for encryption:
+
+```yaml
+# Age key secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: age-keys
+  namespace: default
+type: Opaque
+data:
+  # Base64 encoded age public key
+  team-public-key: YWdlMXh4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4...
+
+---
+# SSH key secret  
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ssh-keys
+  namespace: default
+type: Opaque
+data:
+  # Base64 encoded SSH public key
+  id_rsa.pub: c3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFCZ1FD...
+
+---
+# Passphrase secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: encryption-secrets
+  namespace: default
+type: Opaque
+data:
+  # Base64 encoded passphrase
+  backup-passphrase: bXktc2VjdXJlLXBhc3NwaHJhc2UtZm9yLWJhY2t1cHM=
+```
+
+### Encryption Best Practices
+
+**🔐 Security Considerations:**
+- Store encryption keys securely in Kubernetes Secrets
+- Use different keys for different environments (dev/staging/prod)
+- Regularly rotate encryption keys and passphrases
+- Consider using age keys for better security than passphrases
+- Validate encrypted files can be decrypted before committing
+
+**📁 File Management:**
+- Encrypted files use `.age` extension by default (customizable)
+- Original filenames are preserved with encryption extension added
+- Already encrypted files (`.age` extension) are not re-encrypted
+- Use descriptive paths to organize encrypted content
+
+**🔄 GitOps Integration:**
+- Encrypted files can be safely stored in public repositories
+- Use tools like SOPS or age CLI for manual decryption when needed
+- Consider automation for decrypting files in CI/CD pipelines
+- Document which files are encrypted for team awareness
+
 ## Templating
 
 ### Template Functions

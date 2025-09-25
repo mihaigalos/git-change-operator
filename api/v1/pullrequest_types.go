@@ -16,6 +16,7 @@ type PullRequestSpec struct {
 	ResourceRefs  []ResourceRef `json:"resourceRefs,omitempty"`
 	AuthSecretRef string        `json:"authSecretRef"`
 	AuthSecretKey string        `json:"authSecretKey,omitempty"`
+	Encryption    *Encryption   `json:"encryption,omitempty"`
 }
 
 type PullRequestStatus struct {

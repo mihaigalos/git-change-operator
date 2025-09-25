@@ -20,6 +20,7 @@ A Kubernetes operator that enables automated Git operations from within clusters
   - Extract specific fields with custom naming
 - **Write Modes**: Overwrite or append to existing files
 - **Git Operations**: Support for both direct commits and pull requests
+- **File Encryption**: Age-based encryption with support for SSH keys, age keys, and passphrases
 - **Secure Authentication**: Uses Kubernetes Secrets for Git authentication
 
 ## Minimal demo

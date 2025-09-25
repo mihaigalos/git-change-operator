@@ -385,6 +385,107 @@ spec:
       afterApproval: "5m"    # Wait 5 minutes after final approval
 ```
 
+### File Encryption
+
+Encrypt sensitive files before committing them to the repository using age encryption:
+
+```yaml
+spec:
+  # Basic encryption setup with SSH public key
+  encryption:
+    enabled: true
+    recipients:
+      - type: ssh
+        secretRef:
+          name: ssh-keys
+          key: id_rsa.pub
+  
+  files:
+    - path: "secrets/database.yaml"
+      content: |
+        database:
+          host: db.example.com
+          password: super-secret-password
+          ssl_cert: |
+            -----BEGIN CERTIFICATE-----
+            MIIBkTCB+wIJANfKvPOD7JEBMA0GCSqGSIb3DQEBBQUAMBkx...
+            -----END CERTIFICATE-----
+```
+
+**Advanced encryption with multiple recipient types:**
+
+```yaml
+spec:
+  encryption:
+    enabled: true
+    fileExtension: ".encrypted"  # Custom extension (default: .age)
+    recipients:
+      # Age key recipient
+      - type: age
+        secretRef:
+          name: age-keys
+          key: public-key
+      
+      # SSH key recipient (uses SSH public key)
+      - type: ssh
+        secretRef:
+          name: ssh-keys
+          key: id_rsa.pub
+      
+      # Passphrase recipient
+      - type: passphrase
+        secretRef:
+          name: passwords
+          key: encryption-passphrase
+
+  resourceRefs:
+    - apiVersion: v1
+      kind: Secret
+      name: app-secrets
+      namespace: default
+      path: "secrets/app-secrets.yaml"
+      # This will be encrypted as secrets/app-secrets.yaml.encrypted
+```
+
+**Encryption secrets setup:**
+
+```yaml
+# Create age key secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: age-keys
+  namespace: default
+data:
+  public-key: YWdlMXh4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4eGJ4...
+
+---
+# Create SSH key secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ssh-keys  
+  namespace: default
+data:
+  id_rsa.pub: c3NoLXJzYSBBQUFBQjNOemFDMXljMkVBQUFBREFRQUJBQUFCZ1FD...
+
+---
+# Create passphrase secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: passwords
+  namespace: default
+data:
+  encryption-passphrase: bXktc2VjdXJlLXBhc3NwaHJhc2U=  # my-secure-passphrase
+```
+
+**Benefits of encryption:**
+- **Security**: Sensitive data is encrypted before being stored in Git
+- **Compliance**: Meet security requirements for storing secrets in repositories
+- **Flexibility**: Support for multiple encryption methods (age keys, SSH keys, passphrases)
+- **GitOps-ready**: Encrypted files can be safely stored in public repositories
+
 ### PR Templates and Customization
 
 #### Dynamic PR Titles

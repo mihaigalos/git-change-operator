@@ -108,6 +108,51 @@ Array of static files to include in the commit.
 | `path` | string | ✓ | File path in repository |
 | `content` | string | ✓ | File content |
 
+#### spec.encryption
+Optional configuration for encrypting files before committing to git.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enabled` | boolean | ✓ | Enable/disable encryption |
+| `fileExtension` | string | ✗ | File extension for encrypted files (default: ".age") |
+| `recipients` | array | ✗ | List of encryption recipients |
+
+#### spec.encryption.recipients
+Array of encryption recipients (keys/passphrases) used for file encryption.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | ✓ | Recipient type: "age", "ssh", or "passphrase" |
+| `value` | string | ✗ | Direct recipient value (not recommended for secrets) |
+| `secretRef` | object | ✗ | Reference to Kubernetes Secret containing the recipient |
+
+#### spec.encryption.recipients.secretRef
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | ✓ | Name of the Secret |
+| `key` | string | ✗ | Key within the Secret (default: uses recipient type as key) |
+
+**Encryption Example:**
+```yaml
+spec:
+  encryption:
+    enabled: true
+    fileExtension: ".encrypted"
+    recipients:
+      - type: age
+        secretRef:
+          name: age-keys
+          key: public-key
+      - type: ssh
+        secretRef:
+          name: ssh-keys
+          key: id_rsa.pub
+      - type: passphrase
+        secretRef:
+          name: passwords
+          key: encryption-passphrase
+```
+
 #### spec.resourceReferences
 Array of Kubernetes resource references to include in the commit.
 
@@ -163,6 +208,15 @@ spec:
   files: []
   resourceReferences: []
   writeMode: "overwrite"
+  
+  # Encryption (same as GitCommit)
+  encryption:
+    enabled: true
+    recipients:
+      - type: ssh
+        secretRef:
+          name: ssh-keys
+          key: id_rsa.pub
 ```
 
 ### Field Reference
@@ -195,6 +249,16 @@ data:
 | `branchPrefix` | string | ✗ | Prefix for auto-generated branch names |
 
 The operator creates unique branch names using the format: `{branchPrefix}-{timestamp}`
+
+#### Additional Fields
+
+PullRequest resources support the same field specifications as GitCommit for:
+- `spec.files` - Static files to include in the pull request
+- `spec.resourceReferences` - Kubernetes resource references 
+- `spec.encryption` - File encryption configuration
+- `spec.writeMode` - File write mode behavior
+
+Refer to the GitCommit specification above for detailed field documentation.
 
 ## Status Fields
 
