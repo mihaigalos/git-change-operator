@@ -4,7 +4,7 @@ This example demonstrates the most basic usage of the GitCommit resource to comm
 
 ## Prerequisites
 
-- Git Change Operator installed in your cluster
+- Git Change Operator installed in the cluster
 - A Git repository with write access
 - Kubernetes Secret with Git credentials
 

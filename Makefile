@@ -158,8 +158,13 @@ kube-setup-token: # Interactively create GitHub token secret for any Kubernetes 
 	echo "Using context: $$KUBE_CONTEXT"; \
 	echo "Using namespace: $$KUBE_NAMESPACE"; \
 	echo; \
-	echo "Please enter your GitHub personal access token:"; \
-	read -s GITHUB_TOKEN; \
+	if [ -f "token" ]; then \
+		echo "📄 Reading GitHub token from token file..."; \
+		GITHUB_TOKEN=$$(cat token); \
+	else \
+		echo "Please enter your GitHub personal access token:"; \
+		read -s GITHUB_TOKEN; \
+	fi; \
 	if [ -z "$$GITHUB_TOKEN" ]; then \
 		echo "❌ No token provided, skipping secret creation"; \
 		exit 1; \
@@ -298,7 +303,7 @@ kind-status: # Show Kind cluster and operator status (hidden)
 		echo "No GitCommit resources found to check"; \
 	fi
 
-kind-full-demo: kind-create kind-deploy kind-load-image kind-setup-token kind-demo kind-status ## Complete Kind demo workflow
+kind-full-demo: kind-destroy kind-create kind-deploy kind-load-image kind-setup-token kind-demo kind-status ## Complete Kind demo workflow
 	@echo ""
 	@echo "🎉 Complete Kind Demo Workflow Finished!"
 	@echo "========================================"

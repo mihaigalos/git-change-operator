@@ -41,7 +41,7 @@ rbac:
 
 ## Principle of Least Privilege
 
-The operator only needs **read access** to resources that your GitCommit and PullRequest resources reference. Follow these guidelines:
+The operator only needs **read access** to resources that GitCommit and PullRequest resources reference. Follow these guidelines:
 
 1. **Start minimal**: Begin with no additional permissions
 2. **Add incrementally**: Add specific permissions only as needed

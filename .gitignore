@@ -55,3 +55,4 @@ docs/.venv/
 corporate-config.env
 
 .kube/
+token

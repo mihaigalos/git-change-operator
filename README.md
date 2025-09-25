@@ -8,7 +8,7 @@
 [![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml)
 [![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml)
 
-A Kubernetes operator that enables automated Git operations from within your cluster. Commit files directly or reference existing Kubernetes resources (Secrets, ConfigMaps, etc.) and push them to Git repositories with flexible output strategies.
+A Kubernetes operator that enables automated Git operations from within clusters. Commit files directly or reference existing Kubernetes resources (Secrets, ConfigMaps, etc.) and push them to Git repositories with flexible output strategies.
 
 ## Features
 
@@ -54,7 +54,7 @@ spec:
 
 ## Minimal demo using self-hosted Kind cluster
 
-Please have a token (preferably fine-grained) with fine-grained permissions ready, the following step asks for it:
+Please have a token (preferably fine-grained) with fine-grained permissions ready, the following step asks for it if not already present in a git-ignored file called `token` in this repo.
 
 ```bash
 make kind-full-demo
@@ -131,7 +131,7 @@ Share configuration between clusters through Git repositories.
 
     ---
 
-    Install the operator and create your first GitCommit resource in minutes.
+    Install the operator and create a first GitCommit resource in minutes.
 
     [:octicons-arrow-right-24: Quick Start](docs/user-guide/quick-start.md)
 
