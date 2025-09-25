@@ -56,3 +56,5 @@ corporate-config.env
 
 .kube/
 token
+id_rsa_4096 # demo ssh keypair
+id_rsa_4096
