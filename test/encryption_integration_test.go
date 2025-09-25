@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mihaigalos/git-change-operator/pkg/encryption"
-	gitev1 "github.com/mihaigalos/git-change-operator/api/v1"
 	"filippo.io/age"
 	"filippo.io/age/agessh"
+	gitev1 "github.com/mihaigalos/git-change-operator/api/v1"
+	"github.com/mihaigalos/git-change-operator/pkg/encryption"
 )
 
 // Test keys and passphrases for testing
@@ -22,7 +22,7 @@ func generateTestKeys(t *testing.T) (privateKey string, publicKey string) {
 	if err != nil {
 		t.Fatalf("Failed to generate test identity: %v", err)
 	}
-	
+
 	return identity.String(), identity.Recipient().String()
 }
 
@@ -184,7 +184,7 @@ func TestEncryptWithMultipleRecipients(t *testing.T) {
 func TestEncryptWithMixedRecipientTypes(t *testing.T) {
 	// Test that the age library correctly rejects incompatible recipient types
 	// This is expected behavior - age doesn't support mixing different types
-	
+
 	// Generate test keys
 	_, testPublicKey := generateTestKeys(t)
 

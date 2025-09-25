@@ -192,7 +192,7 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 
 		for _, file := range resourceFiles {
 			targetPath := file.Path
-			
+
 			// Handle write modes
 			var content []byte
 			if resourceRef.Strategy.WriteMode == gitv1.WriteModeAppend {

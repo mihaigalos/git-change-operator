@@ -21,7 +21,7 @@ func NewEncryptor(recipients []gitev1.Recipient) (*Encryptor, error) {
 
 	for _, recipient := range recipients {
 		var recipientValue string
-		
+
 		// Get the actual recipient value (either from Value or SecretRef)
 		if recipient.Value != "" {
 			recipientValue = recipient.Value
@@ -72,7 +72,7 @@ func NewEncryptor(recipients []gitev1.Recipient) (*Encryptor, error) {
 // Encrypt encrypts the given data and returns the encrypted bytes
 func (e *Encryptor) Encrypt(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
-	
+
 	w, err := age.Encrypt(&buf, e.recipients...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create age writer: %w", err)
@@ -102,7 +102,7 @@ func ShouldEncryptFile(path string, config *gitev1.Encryption) bool {
 	if config == nil || !config.Enabled {
 		return false
 	}
-	
+
 	// Don't double-encrypt already encrypted files
 	ext := GetFileExtension(config)
 	return !strings.HasSuffix(path, ext)

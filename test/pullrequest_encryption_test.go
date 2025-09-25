@@ -27,15 +27,15 @@ func TestPullRequestEncryptionUtils(t *testing.T) {
 	t.Run("shouldEncryptFile", func(t *testing.T) {
 		should := encryption.ShouldEncryptFile("secret.yaml", encryptionConfig)
 		require.True(t, should)
-		
+
 		// Already encrypted files should not be encrypted again
 		shouldNot := encryption.ShouldEncryptFile("secret.yaml.age", encryptionConfig)
 		require.False(t, shouldNot)
-		
+
 		// Nil config should return false
 		shouldNotNil := encryption.ShouldEncryptFile("secret.yaml", nil)
 		require.False(t, shouldNotNil)
-		
+
 		// Disabled encryption should return false
 		disabledConfig := &gitv1.Encryption{Enabled: false}
 		shouldNotDisabled := encryption.ShouldEncryptFile("secret.yaml", disabledConfig)
@@ -46,11 +46,11 @@ func TestPullRequestEncryptionUtils(t *testing.T) {
 	t.Run("getEncryptedFilePath", func(t *testing.T) {
 		encryptedPath := encryption.GetEncryptedFilePath("secret.yaml", encryptionConfig)
 		require.Equal(t, "secret.yaml.age", encryptedPath)
-		
+
 		// Test with path
 		encryptedPathWithDir := encryption.GetEncryptedFilePath("config/secret.yaml", encryptionConfig)
 		require.Equal(t, "config/secret.yaml.age", encryptedPathWithDir)
-		
+
 		// Test with custom extension
 		customConfig := &gitv1.Encryption{
 			Enabled:       true,

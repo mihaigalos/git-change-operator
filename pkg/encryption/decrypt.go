@@ -32,7 +32,7 @@ func NewDecryptor(identities []gitev1.Recipient) (*Decryptor, error) {
 
 	for _, identity := range identities {
 		var identityValue string
-		
+
 		if identity.Value != "" {
 			identityValue = identity.Value
 		} else if identity.SecretRef != nil {

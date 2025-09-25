@@ -41,9 +41,9 @@ type FieldRef struct {
 }
 
 type Encryption struct {
-	Enabled       bool             `json:"enabled"`
-	Recipients    []Recipient      `json:"recipients,omitempty"`
-	FileExtension string           `json:"fileExtension,omitempty"`
+	Enabled       bool        `json:"enabled"`
+	Recipients    []Recipient `json:"recipients,omitempty"`
+	FileExtension string      `json:"fileExtension,omitempty"`
 }
 
 type Recipient struct {

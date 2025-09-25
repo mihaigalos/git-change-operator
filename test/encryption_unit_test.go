@@ -3,8 +3,8 @@ package test
 import (
 	"testing"
 
-	"github.com/mihaigalos/git-change-operator/pkg/encryption"
 	gitev1 "github.com/mihaigalos/git-change-operator/api/v1"
+	"github.com/mihaigalos/git-change-operator/pkg/encryption"
 )
 
 func TestShouldEncryptFile(t *testing.T) {
