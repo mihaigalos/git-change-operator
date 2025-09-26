@@ -136,7 +136,7 @@ Share configuration between clusters through Git repositories.
 
     Install the operator and create a first GitCommit resource in minutes.
 
-    [:octicons-arrow-right-24: Quick Start](user-guide/quick-start.md)
+    [:octicons-arrow-right-24: Quick Start](docs/user-guide/quick-start.md)
 
 -   :material-book-open:{ .lg .middle } **User Guide**
 
@@ -144,7 +144,7 @@ Share configuration between clusters through Git repositories.
 
     Complete guide covering installation, configuration, and usage patterns.
 
-    [:octicons-arrow-right-24: User Guide](user-guide/index.md)
+    [:octicons-arrow-right-24: User Guide](docs/user-guide/index.md)
 
 -   :material-code-braces:{ .lg .middle } **Examples**
 
@@ -152,7 +152,7 @@ Share configuration between clusters through Git repositories.
 
     Real-world examples and use cases with complete YAML configurations.
 
-    [:octicons-arrow-right-24: Examples](examples/index.md)
+    [:octicons-arrow-right-24: Examples](docs/examples/index.md)
 
 -   :material-api:{ .lg .middle } **API Reference**
 
@@ -160,7 +160,7 @@ Share configuration between clusters through Git repositories.
 
     Complete API documentation and CRD specifications.
 
-    [:octicons-arrow-right-24: Reference](reference/index.md)
+    [:octicons-arrow-right-24: Reference](docs/reference/index.md)
 
 -   :material-shield-check:{ .lg .middle } **Security**
 
@@ -168,7 +168,7 @@ Share configuration between clusters through Git repositories.
 
     Production security considerations and RBAC configuration.
 
-    [:octicons-arrow-right-24: Security Considerations](security.md)
+    [:octicons-arrow-right-24: Security Considerations](docs/security.md)
 
 </div>
 
