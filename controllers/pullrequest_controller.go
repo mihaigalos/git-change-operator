@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	gitv1 "github.com/mihaigalos/git-change-operator/api/v1"
+	"github.com/mihaigalos/git-change-operator/pkg/encryption"
 )
 
 type PullRequestReconciler struct {
@@ -279,11 +280,27 @@ func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1
 			return 0, "", err
 		}
 
-		if err := os.WriteFile(filePath, []byte(file.Content), 0644); err != nil {
+		// Encrypt file content if encryption is enabled
+		content := []byte(file.Content)
+		if encryption.ShouldEncryptFile(file.Path, pr.Spec.Encryption) {
+			encryptedContent, err := r.encryptFileContent(ctx, content, pr.Spec.Encryption, pr.Namespace)
+			if err != nil {
+				return 0, "", fmt.Errorf("failed to encrypt file %s: %w", file.Path, err)
+			}
+			content = encryptedContent
+			filePath = encryption.GetEncryptedFilePath(filePath, pr.Spec.Encryption)
+		}
+
+		if err := os.WriteFile(filePath, content, 0644); err != nil {
 			return 0, "", err
 		}
 
-		if _, err := w.Add(file.Path); err != nil {
+		// Add the correct file path to git (encrypted if applicable)
+		gitPath := file.Path
+		if encryption.ShouldEncryptFile(file.Path, pr.Spec.Encryption) {
+			gitPath = encryption.GetEncryptedFilePath(file.Path, pr.Spec.Encryption)
+		}
+		if _, err := w.Add(gitPath); err != nil {
 			return 0, "", err
 		}
 	}
@@ -310,11 +327,26 @@ func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1
 				finalContent = content
 			}
 
+			// Encrypt content if encryption is enabled for this file
+			if encryption.ShouldEncryptFile(relativePath, pr.Spec.Encryption) {
+				encryptedContent, err := r.encryptFileContent(ctx, finalContent, pr.Spec.Encryption, pr.Namespace)
+				if err != nil {
+					return 0, "", fmt.Errorf("failed to encrypt file %s: %w", relativePath, err)
+				}
+				finalContent = encryptedContent
+				filePath = encryption.GetEncryptedFilePath(filePath, pr.Spec.Encryption)
+			}
+
 			if err := os.WriteFile(filePath, finalContent, 0644); err != nil {
 				return 0, "", err
 			}
 
-			if _, err := w.Add(relativePath); err != nil {
+			// Add the correct file path to git (encrypted if applicable)
+			gitPath := relativePath
+			if encryption.ShouldEncryptFile(relativePath, pr.Spec.Encryption) {
+				gitPath = encryption.GetEncryptedFilePath(relativePath, pr.Spec.Encryption)
+			}
+			if _, err := w.Add(gitPath); err != nil {
 				return 0, "", err
 			}
 		}
@@ -405,6 +437,60 @@ func (r *PullRequestReconciler) updateStatus(ctx context.Context, pr *gitv1.Pull
 	pr.Status.LastSync = &now
 
 	return r.Status().Update(ctx, pr)
+}
+
+func (r *PullRequestReconciler) encryptFileContent(ctx context.Context, content []byte, encryptionConfig *gitv1.Encryption, namespace string) ([]byte, error) {
+	if encryptionConfig == nil || !encryptionConfig.Enabled {
+		return content, nil
+	}
+
+	// Resolve recipients (including secret references)
+	resolvedRecipients, err := r.resolveRecipients(ctx, encryptionConfig.Recipients, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve recipients: %w", err)
+	}
+
+	// Create encryptor
+	encryptor, err := encryption.NewEncryptor(resolvedRecipients)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create encryptor: %w", err)
+	}
+
+	// Encrypt the content
+	return encryptor.Encrypt(content)
+}
+
+func (r *PullRequestReconciler) resolveRecipients(ctx context.Context, recipients []gitv1.Recipient, namespace string) ([]gitv1.Recipient, error) {
+	var resolved []gitv1.Recipient
+
+	for _, recipient := range recipients {
+		if recipient.SecretRef != nil {
+			// Resolve value from secret
+			var secret corev1.Secret
+			if err := r.Get(ctx, types.NamespacedName{Name: recipient.SecretRef.Name, Namespace: namespace}, &secret); err != nil {
+				return nil, fmt.Errorf("failed to get secret %s: %w", recipient.SecretRef.Name, err)
+			}
+
+			key := recipient.SecretRef.Key
+			if key == "" {
+				key = "publicKey"
+			}
+
+			value, exists := secret.Data[key]
+			if !exists {
+				return nil, fmt.Errorf("key %s not found in secret %s", key, recipient.SecretRef.Name)
+			}
+
+			resolved = append(resolved, gitv1.Recipient{
+				Type:  recipient.Type,
+				Value: string(value),
+			})
+		} else {
+			resolved = append(resolved, recipient)
+		}
+	}
+
+	return resolved, nil
 }
 
 func (r *PullRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {

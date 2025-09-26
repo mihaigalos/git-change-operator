@@ -141,11 +141,12 @@ nav:
     - PullRequest Resources: user-guide/pullrequest.md
     - Resource References: user-guide/resource-references.md
     - Authentication: user-guide/authentication.md
+    - Kind Demo: user-guide/kind-demo.md
 
   - Reference:
     - reference/index.md
     - CRD Specification: reference/crd-spec.md
-    - API Reference: reference/api.md
+    - API Reference & CRD Specification: reference/crd-spec.md
     - Resource Reference Strategies: reference/resource-reference-strategies.md
     - Write Modes: reference/write-modes.md
     - Error Handling: reference/error-handling.md
@@ -156,11 +157,13 @@ nav:
     - GitCommit with Resource References: examples/gitcommit-resourcerefs.md
     - PullRequest Creation: examples/pullrequest.md
     - Advanced Scenarios: examples/advanced.md
+    - Corporate Setup: examples/corporate-setup.md
 
   - Development:
     - development/index.md
     - Architecture: development/architecture.md
     - Testing: development/testing.md
+    - Embedded Chart: embedded-chart.md
 
 extra_css:
   - stylesheets/extra.css

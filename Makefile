@@ -182,6 +182,20 @@ kind-setup-token: # Create GitHub token secret for Kind cluster (hidden)
 	@echo "🔑 Setting up GitHub token for Kind cluster..."
 	@KUBE_CONTEXT="kind-git-change-operator" KUBE_NAMESPACE="git-change-operator" $(MAKE) kube-setup-token
 
+kind-setup-encryption-keys: # Create SSH encryption keys secret for Kind cluster (hidden)
+	@echo "🔐 Setting up SSH encryption keys for Kind cluster..."
+	@export PATH="/opt/homebrew/bin:$$PATH"; \
+	echo "Using test SSH key pair..."; \
+	kubectl create secret generic ssh-keys \
+		--from-file=id_rsa.pub=test/resources/id_rsa_4096.pub \
+		--namespace git-change-operator \
+		--context kind-git-change-operator \
+		--dry-run=client -o yaml | kubectl apply -f -; \
+	echo "✅ SSH encryption keys secret created!"; \
+	echo "   Public key: $$(cat test/resources/id_rsa_4096.pub)"; \
+	echo "   Secret: ssh-keys/id_rsa.pub in git-change-operator namespace"; \
+	echo "   Private key for decryption: test/resources/id_rsa_4096"
+
 kind-patch-operator: # Patch operator deployment to disable it for CRD-only testing (hidden)
 	@echo "🔧 Patching operator deployment for testing..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
@@ -189,35 +203,76 @@ kind-patch-operator: # Patch operator deployment to disable it for CRD-only test
 	kubectl scale deployment git-change-operator-controller-manager --replicas=0 -n git-change-operator --context kind-git-change-operator; \
 	echo "✅ Operator deployment scaled to 0. CRDs are available for testing without operator processing."
 
-kind-demo: # Create a demo GitCommit resource (hidden)
-	@echo "🎯 Creating demo GitCommit resource..."
+kind-demo: # Create demo GitCommit resources (with and without encryption) (hidden)
+	@echo "🎯 Creating demo GitCommit resources..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
-	echo "apiVersion: gco.galos.one/v1" > /tmp/demo-gitcommit.yaml; \
-	echo "kind: GitCommit" >> /tmp/demo-gitcommit.yaml; \
-	echo "metadata:" >> /tmp/demo-gitcommit.yaml; \
-	echo "  name: demo-commit-$$(date +%s)" >> /tmp/demo-gitcommit.yaml; \
-	echo "  namespace: git-change-operator" >> /tmp/demo-gitcommit.yaml; \
-	echo "spec:" >> /tmp/demo-gitcommit.yaml; \
-	echo "  repository: \"https://github.com/mihaigalos/test\"" >> /tmp/demo-gitcommit.yaml; \
-	echo "  branch: \"main\"" >> /tmp/demo-gitcommit.yaml; \
-	echo "  commitMessage: \"Demo commit from Kind cluster - $$(date)\"" >> /tmp/demo-gitcommit.yaml; \
-	echo "  authSecretRef: \"git-credentials\"" >> /tmp/demo-gitcommit.yaml; \
-	echo "  files:" >> /tmp/demo-gitcommit.yaml; \
-	echo "  - path: \"demo-$$(date +%Y%m%d-%H%M%S).txt\"" >> /tmp/demo-gitcommit.yaml; \
-	echo "    content: |" >> /tmp/demo-gitcommit.yaml; \
-	echo "      Hello from Kind cluster!" >> /tmp/demo-gitcommit.yaml; \
-	echo "      Created at: $$(date)" >> /tmp/demo-gitcommit.yaml; \
-	echo "      Cluster: kind-git-change-operator" >> /tmp/demo-gitcommit.yaml; \
+	TIMESTAMP=$$(date +%s); \
+	echo "📄 Creating GitCommit without encryption..."; \
+	{ \
+		echo "apiVersion: gco.galos.one/v1"; \
+		echo "kind: GitCommit"; \
+		echo "metadata:"; \
+		echo "  name: demo-commit-plain-$$TIMESTAMP"; \
+		echo "  namespace: git-change-operator"; \
+		echo "spec:"; \
+		echo "  repository: \"https://github.com/mihaigalos/test\""; \
+		echo "  branch: \"main\""; \
+		echo "  commitMessage: \"Demo plain commit from Kind cluster - $$(date)\""; \
+		echo "  authSecretRef: \"git-credentials\""; \
+		echo "  files:"; \
+		echo "  - path: \"demo-plain-$$(date +%Y%m%d-%H%M%S).txt\""; \
+		echo "    content: |"; \
+		echo "      Hello from Kind cluster (plain text)!"; \
+		echo "      Created at: $$(date)"; \
+		echo "      Cluster: kind-git-change-operator"; \
+		echo "      Content: This is a regular, unencrypted file."; \
+	} > /tmp/demo-gitcommit-plain.yaml; \
 	echo; \
-	echo "📄 Demo GitCommit manifest:"; \
-	cat /tmp/demo-gitcommit.yaml; \
+	echo "🔐 Creating GitCommit with encryption..."; \
+	{ \
+		echo "apiVersion: gco.galos.one/v1"; \
+		echo "kind: GitCommit"; \
+		echo "metadata:"; \
+		echo "  name: demo-commit-encrypted-$$TIMESTAMP"; \
+		echo "  namespace: git-change-operator"; \
+		echo "spec:"; \
+		echo "  repository: \"https://github.com/mihaigalos/test\""; \
+		echo "  branch: \"main\""; \
+		echo "  commitMessage: \"Demo encrypted commit from Kind cluster - $$(date)\""; \
+		echo "  authSecretRef: \"git-credentials\""; \
+		echo "  encryption:"; \
+		echo "    enabled: true"; \
+		echo "    recipients:"; \
+		echo "    - type: ssh"; \
+		echo "      secretRef:"; \
+		echo "        name: ssh-keys"; \
+		echo "        key: id_rsa.pub"; \
+		echo "  files:"; \
+		echo "  - path: \"secrets/demo-secret-$$(date +%Y%m%d-%H%M%S).yaml\""; \
+		echo "    content: |"; \
+		echo "      # This file contains sensitive information and will be encrypted"; \
+		echo "      database:"; \
+		echo "        host: db.example.com"; \
+		echo "        password: super-secret-password-123"; \
+		echo "        api_key: sk-1234567890abcdef"; \
+		echo "      created_at: $$(date)"; \
+		echo "      cluster: kind-git-change-operator"; \
+	} > /tmp/demo-gitcommit-encrypted.yaml; \
 	echo; \
-	echo "🚀 Applying GitCommit resource..."; \
-	kubectl apply -f /tmp/demo-gitcommit.yaml --context kind-git-change-operator; \
-	echo "✅ Demo GitCommit created! Check status with:"; \
+	echo "📄 GitCommit without encryption:"; \
+	cat /tmp/demo-gitcommit-plain.yaml; \
+	echo; \
+	echo "🔐 GitCommit with encryption:"; \
+	cat /tmp/demo-gitcommit-encrypted.yaml; \
+	echo; \
+	echo "🚀 Applying GitCommit resources..."; \
+	kubectl apply -f /tmp/demo-gitcommit-plain.yaml --context kind-git-change-operator; \
+	kubectl apply -f /tmp/demo-gitcommit-encrypted.yaml --context kind-git-change-operator; \
+	echo "✅ Demo GitCommit resources created! Check status with:"; \
 	echo "   kubectl get gitcommit -n git-change-operator --context kind-git-change-operator"; \
 	echo; \
-	echo "ℹ️  Note: Operator pod is not running, so GitCommit won't be processed."; \
+	echo "ℹ️  Note: The encrypted GitCommit requires an SSH public key secret."; \
+	echo "   Create it with: make kind-setup-encryption-keys"; \
 	echo "   To build and run the operator: make docker-build kind-load-image kind-restart-operator"
 
 kind-load-image: # Load local Docker image into Kind cluster (hidden)
@@ -303,15 +358,16 @@ kind-status: # Show Kind cluster and operator status (hidden)
 		echo "No GitCommit resources found to check"; \
 	fi
 
-kind-full-demo: kind-destroy kind-create kind-deploy kind-load-image kind-setup-token kind-demo kind-status ## Complete Kind demo workflow
+kind-full-demo: kind-destroy kind-create kind-deploy kind-load-image kind-setup-token kind-setup-encryption-keys kind-demo kind-status ## Complete Kind demo workflow
 	@echo ""
 	@echo "🎉 Complete Kind Demo Workflow Finished!"
 	@echo "========================================"
 	@echo ""
 	@echo "✅ Kind cluster created with corporate proxy support"
 	@echo "✅ git-change-operator deployed with conditional CRDs"
-	@echo "✅ GitHub token secret configured"  
-	@echo "✅ Demo GitCommit resource created"
+	@echo "✅ GitHub token secret configured"
+	@echo "✅ SSH encryption keys configured"
+	@echo "✅ Demo GitCommit resources created (plain + encrypted)"
 	@echo ""
 	@echo "🔍 Next steps:"
 	@echo "   • Check operator logs: kubectl logs -n git-change-operator deployment/git-change-operator-controller-manager --context kind-git-change-operator"
@@ -397,4 +453,4 @@ docs-clean: ## Clean built documentation and virtual environment
 	rm -rf site/
 	rm -rf docs/.venv/
 
-.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy kube-setup-token kind-create kind-deploy kind-setup-token kind-patch-operator kind-demo kind-load-image kind-restart-operator kind-build-and-test kind-status kind-destroy kind-destroy kind-full-demo helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy docs-venv docs-deps docs-serve docs-serve-versioned docs-build docs-deploy docs-version-deploy docs-version-set-default docs-version-list docs-clean
+.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy kube-setup-token kind-create kind-deploy kind-setup-token kind-setup-encryption-keys kind-patch-operator kind-demo kind-load-image kind-restart-operator kind-build-and-test kind-status kind-destroy kind-destroy kind-full-demo helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy docs-venv docs-deps docs-serve docs-serve-versioned docs-build docs-deploy docs-version-deploy docs-version-set-default docs-version-list docs-clean

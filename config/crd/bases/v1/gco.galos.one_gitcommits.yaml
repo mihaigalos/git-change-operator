@@ -58,6 +58,35 @@ spec:
                 type: string
               commitMessage:
                 type: string
+              encryption:
+                properties:
+                  enabled:
+                    type: boolean
+                  fileExtension:
+                    type: string
+                  recipients:
+                    items:
+                      properties:
+                        secretRef:
+                          properties:
+                            key:
+                              type: string
+                            name:
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - type
+                      type: object
+                    type: array
+                required:
+                - enabled
+                type: object
               files:
                 items:
                   properties:

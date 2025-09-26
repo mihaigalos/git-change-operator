@@ -33,6 +33,7 @@ RUN go mod download
 
 COPY main.go main.go
 COPY api/ api/
+COPY pkg/ pkg/
 COPY controllers/ controllers/
 COPY helm/ helm/
 COPY config/crd/bases/ config/crd/bases/
