@@ -438,16 +438,16 @@ docs-version-deploy: docs-deps docs-prepare # Deploy a new version of documentat
 ifndef VERSION
 	$(error VERSION is required. Usage: make docs-version-deploy VERSION=1.1.0)
 endif
-	source docs/.venv/bin/activate && mike deploy --push --update-aliases $(VERSION) latest && $(MAKE) docs-restore
+	source docs/.venv/bin/activate && mike deploy --push --branch gh-pages --update-aliases $(VERSION) latest && $(MAKE) docs-restore
 
 docs-version-set-default: docs-deps ## Set default version for documentation (usage: make docs-version-set-default VERSION=1.0.0)
 ifndef VERSION
 	$(error VERSION is required. Usage: make docs-version-set-default VERSION=1.0.0)
 endif
-	docs/.venv/bin/mike set-default $(VERSION)
+	docs/.venv/bin/mike set-default --push --branch gh-pages $(VERSION)
 
 docs-version-list: docs-deps ## List all deployed documentation versions
-	docs/.venv/bin/mike list
+	docs/.venv/bin/mike list --branch gh-pages
 
 docs-clean: ## Clean built documentation and virtual environment
 	rm -rf site/
