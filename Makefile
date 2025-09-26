@@ -208,52 +208,56 @@ kind-demo: # Create demo GitCommit resources (with and without encryption) (hidd
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
 	TIMESTAMP=$$(date +%s); \
 	echo "📄 Creating GitCommit without encryption..."; \
-	echo "apiVersion: gco.galos.one/v1" > /tmp/demo-gitcommit-plain.yaml; \
-	echo "kind: GitCommit" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "metadata:" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "  name: demo-commit-plain-$$TIMESTAMP" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "  namespace: git-change-operator" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "spec:" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "  repository: \"https://github.com/mihaigalos/test\"" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "  branch: \"main\"" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "  commitMessage: \"Demo plain commit from Kind cluster - $$(date)\"" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "  authSecretRef: \"git-credentials\"" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "  files:" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "  - path: \"demo-plain-$$(date +%Y%m%d-%H%M%S).txt\"" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "    content: |" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "      Hello from Kind cluster (plain text)!" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "      Created at: $$(date)" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "      Cluster: kind-git-change-operator" >> /tmp/demo-gitcommit-plain.yaml; \
-	echo "      Content: This is a regular, unencrypted file." >> /tmp/demo-gitcommit-plain.yaml; \
+	{ \
+		echo "apiVersion: gco.galos.one/v1"; \
+		echo "kind: GitCommit"; \
+		echo "metadata:"; \
+		echo "  name: demo-commit-plain-$$TIMESTAMP"; \
+		echo "  namespace: git-change-operator"; \
+		echo "spec:"; \
+		echo "  repository: \"https://github.com/mihaigalos/test\""; \
+		echo "  branch: \"main\""; \
+		echo "  commitMessage: \"Demo plain commit from Kind cluster - $$(date)\""; \
+		echo "  authSecretRef: \"git-credentials\""; \
+		echo "  files:"; \
+		echo "  - path: \"demo-plain-$$(date +%Y%m%d-%H%M%S).txt\""; \
+		echo "    content: |"; \
+		echo "      Hello from Kind cluster (plain text)!"; \
+		echo "      Created at: $$(date)"; \
+		echo "      Cluster: kind-git-change-operator"; \
+		echo "      Content: This is a regular, unencrypted file."; \
+	} > /tmp/demo-gitcommit-plain.yaml; \
 	echo; \
-	echo "� Creating GitCommit with encryption..."; \
-	echo "apiVersion: gco.galos.one/v1" > /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "kind: GitCommit" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "metadata:" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "  name: demo-commit-encrypted-$$TIMESTAMP" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "  namespace: git-change-operator" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "spec:" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "  repository: \"https://github.com/mihaigalos/test\"" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "  branch: \"main\"" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "  commitMessage: \"Demo encrypted commit from Kind cluster - $$(date)\"" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "  authSecretRef: \"git-credentials\"" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "  encryption:" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "    enabled: true" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "    recipients:" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "    - type: ssh" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "      secretRef:" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "        name: ssh-keys" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "        key: id_rsa.pub" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "  files:" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "  - path: \"secrets/demo-secret-$$(date +%Y%m%d-%H%M%S).yaml\"" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "    content: |" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "      # This file contains sensitive information and will be encrypted" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "      database:" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "        host: db.example.com" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "        password: super-secret-password-123" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "        api_key: sk-1234567890abcdef" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "      created_at: $$(date)" >> /tmp/demo-gitcommit-encrypted.yaml; \
-	echo "      cluster: kind-git-change-operator" >> /tmp/demo-gitcommit-encrypted.yaml; \
+	echo "🔐 Creating GitCommit with encryption..."; \
+	{ \
+		echo "apiVersion: gco.galos.one/v1"; \
+		echo "kind: GitCommit"; \
+		echo "metadata:"; \
+		echo "  name: demo-commit-encrypted-$$TIMESTAMP"; \
+		echo "  namespace: git-change-operator"; \
+		echo "spec:"; \
+		echo "  repository: \"https://github.com/mihaigalos/test\""; \
+		echo "  branch: \"main\""; \
+		echo "  commitMessage: \"Demo encrypted commit from Kind cluster - $$(date)\""; \
+		echo "  authSecretRef: \"git-credentials\""; \
+		echo "  encryption:"; \
+		echo "    enabled: true"; \
+		echo "    recipients:"; \
+		echo "    - type: ssh"; \
+		echo "      secretRef:"; \
+		echo "        name: ssh-keys"; \
+		echo "        key: id_rsa.pub"; \
+		echo "  files:"; \
+		echo "  - path: \"secrets/demo-secret-$$(date +%Y%m%d-%H%M%S).yaml\""; \
+		echo "    content: |"; \
+		echo "      # This file contains sensitive information and will be encrypted"; \
+		echo "      database:"; \
+		echo "        host: db.example.com"; \
+		echo "        password: super-secret-password-123"; \
+		echo "        api_key: sk-1234567890abcdef"; \
+		echo "      created_at: $$(date)"; \
+		echo "      cluster: kind-git-change-operator"; \
+	} > /tmp/demo-gitcommit-encrypted.yaml; \
 	echo; \
 	echo "📄 GitCommit without encryption:"; \
 	cat /tmp/demo-gitcommit-plain.yaml; \
