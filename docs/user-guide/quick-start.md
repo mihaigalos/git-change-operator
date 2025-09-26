@@ -220,7 +220,7 @@ This will:
 - **[Configuration Guide](configuration.md)** - Detailed configuration options
 - **[Resource References](resource-references.md)** - Advanced resource reference patterns  
 - **[Examples](../examples/index.md)** - Real-world use cases and patterns
-- **[API Reference](../reference/api.md)** - Complete API documentation
+- **[API Reference](../reference/crd-spec.md)** - Complete API documentation
 
 ### Common Next Tasks
 

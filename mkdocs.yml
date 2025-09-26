@@ -146,7 +146,7 @@ nav:
   - Reference:
     - reference/index.md
     - CRD Specification: reference/crd-spec.md
-    - API Reference: reference/api.md
+    - API Reference & CRD Specification: reference/crd-spec.md
     - Resource Reference Strategies: reference/resource-reference-strategies.md
     - Write Modes: reference/write-modes.md
     - Error Handling: reference/error-handling.md

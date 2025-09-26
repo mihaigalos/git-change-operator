@@ -13,7 +13,7 @@ The `GitCommit` custom resource allows you to create git commits automatically b
 - Configurable write modes (overwrite, append)
 - Authentication via Kubernetes secrets
 
-[View GitCommit CRD Specification](crd-spec.md#gitcommit)
+[View GitCommit API Reference](crd-spec.md#gitcommit-resource)
 
 ### PullRequest
 The `PullRequest` custom resource creates GitHub pull requests automatically with files generated from cluster resources.
@@ -24,17 +24,16 @@ The `PullRequest` custom resource creates GitHub pull requests automatically wit
 - File generation from resource references
 - Pull request metadata configuration
 
-[View PullRequest CRD Specification](crd-spec.md#pullrequest)
+[View PullRequest API Reference](crd-spec.md#pullrequest-resource)
 
 ## Configuration Reference
 
 | Topic | Description |
 |-------|-------------|
-| [CRD Specification](crd-spec.md) | Complete schema for GitCommit and PullRequest resources |
+| [API Reference & CRD Specification](crd-spec.md) | Complete API documentation and schema for GitCommit and PullRequest resources |
 | [Resource Reference Strategies](resource-reference-strategies.md) | How to extract data from Kubernetes resources |
 | [Write Modes](write-modes.md) | File writing behavior (overwrite vs append) |
 | [Error Handling](error-handling.md) | Common errors and troubleshooting |
-| [Full API Reference](api.md) | Complete API documentation |
 
 ## Quick Links
 
