@@ -58,6 +58,7 @@ const (
 	RecipientTypeAge        RecipientType = "age"
 	RecipientTypeSSH        RecipientType = "ssh"
 	RecipientTypePassphrase RecipientType = "passphrase"
+	RecipientTypeYubikey    RecipientType = "yubikey"
 )
 
 type SecretRef struct {

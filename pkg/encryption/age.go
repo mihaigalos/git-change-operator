@@ -55,6 +55,13 @@ func NewEncryptor(recipients []gitev1.Recipient) (*Encryptor, error) {
 			}
 			ageRecipients = append(ageRecipients, r)
 
+		case gitev1.RecipientTypeYubikey:
+			r, err := agessh.ParseRecipient(recipientValue)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse YubiKey recipient: %w", err)
+			}
+			ageRecipients = append(ageRecipients, r)
+
 		default:
 			return nil, fmt.Errorf("unsupported recipient type: %s", recipient.Type)
 		}

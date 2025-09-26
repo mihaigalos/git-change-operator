@@ -361,6 +361,12 @@ spec:
         secretRef:
           name: encryption-secrets
           key: backup-passphrase
+      
+      # YubiKey PIV encryption (hardware security)
+      - type: yubikey
+        secretRef:
+          name: yubikey-keys
+          key: piv-public-key
 
   resourceRefs:
     - apiVersion: v1
@@ -470,6 +476,217 @@ data:
 - Use tools like SOPS or age CLI for manual decryption when needed
 - Consider automation for decrypting files in CI/CD pipelines
 - Document which files are encrypted for team awareness
+
+### Complete Encryption Examples
+
+#### Enterprise Multi-Key Encryption
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: enterprise-encrypted-backup
+  namespace: security
+spec:
+  repository: "https://github.com/enterprise/secure-backups.git"
+  branch: "encrypted-backups"
+  commitMessage: "Automated encrypted backup - {{ .Timestamp }}"
+  authSecretRef: "enterprise-git-credentials"
+  
+  # Multi-recipient encryption for enterprise security
+  encryption:
+    enabled: true
+    fileExtension: ".secure"
+    recipients:
+      # Security team YubiKeys (hardware-backed)
+      - type: yubikey
+        secretRef:
+          name: security-team-yubikeys
+          key: ciso-yubikey.pub
+      - type: yubikey
+        secretRef:
+          name: security-team-yubikeys
+          key: security-officer.pub
+      
+      # DevOps team SSH keys
+      - type: ssh
+        secretRef:
+          name: devops-ssh-keys
+          key: devops-team.pub
+      
+      # Emergency recovery keys
+      - type: age
+        secretRef:
+          name: emergency-keys
+          key: break-glass-key
+      
+      # Compliance backup passphrase
+      - type: passphrase
+        secretRef:
+          name: compliance-auth
+          key: audit-passphrase
+  
+  # Comprehensive resource backup
+  resourceRefs:
+    # All production secrets
+    - apiVersion: v1
+      kind: Secret
+      name: "*"
+      namespace: production
+      path: "backups/production/secrets/"
+    
+    # Certificate store
+    - apiVersion: v1
+      kind: Secret
+      name: "*"
+      namespace: cert-manager
+      labelSelector: "cert-manager.io/certificate-name"
+      path: "backups/certificates/"
+    
+    # Database configurations
+    - apiVersion: v1
+      kind: ConfigMap
+      name: database-config
+      namespace: production
+      path: "backups/production/config/database.yaml"
+```
+
+#### Hardware Security with YubiKey
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: yubikey-secured-commit
+  namespace: security
+spec:
+  repository: "https://github.com/enterprise/sensitive-configs.git"
+  branch: "main"
+  commitMessage: "Hardware-encrypted configuration update"
+  authSecretRef: "secure-git-credentials"
+  
+  # YubiKey-only encryption for maximum security
+  encryption:
+    enabled: true
+    recipients:
+      - type: yubikey
+        secretRef:
+          name: primary-yubikey
+          key: security-lead.pub
+  
+  files:
+    - path: "production/secrets/database.yaml"
+      content: |
+        database:
+          host: "prod-db.enterprise.com"
+          username: "app_production"
+          password: "ultra-secure-password-2024"
+          ssl_cert: |
+            -----BEGIN CERTIFICATE-----
+            MIIBkTCB+wIJANfKvPOD7JEBMA0GCSqGSIb3DQEBBQUAMBkx...
+            -----END CERTIFICATE-----
+    
+    - path: "production/secrets/api-keys.yaml"
+      content: |
+        api:
+          payment_gateway: "pk_live_abcdefghijklmnop"
+          email_service: "key-xyz123456789"
+          monitoring: "token-secure-monitoring-2024"
+```
+
+#### Encrypted Resource Synchronization
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: encrypted-gitops-sync
+  namespace: gitops-system
+spec:
+  repository: "https://github.com/enterprise/gitops-encrypted.git"
+  branch: "sync-{{ .Date }}"
+  commitMessage: "Encrypted GitOps sync - {{ .Timestamp }}"
+  authSecretRef: "gitops-credentials"
+  
+  encryption:
+    enabled: true
+    recipients:
+      # Primary encryption: Hardware keys
+      - type: yubikey
+        secretRef:
+          name: gitops-yubikey
+          key: gitops-lead.pub
+      
+      # Secondary: Team SSH keys
+      - type: ssh
+        secretRef:
+          name: gitops-team
+          key: team-key.pub
+      
+      # Emergency: Age keys
+      - type: age
+        secretRef:
+          name: emergency-recovery
+          key: disaster-recovery.pub
+  
+  # Synchronize multiple resource types
+  resourceRefs:
+    # Application secrets across environments
+    - apiVersion: v1
+      kind: Secret
+      name: app-secrets
+      namespace: production
+      path: "encrypted-state/production/app-secrets.yaml"
+    
+    - apiVersion: v1
+      kind: Secret
+      name: app-secrets
+      namespace: staging
+      path: "encrypted-state/staging/app-secrets.yaml"
+    
+    # Infrastructure secrets
+    - apiVersion: v1
+      kind: Secret
+      name: infrastructure-keys
+      namespace: kube-system
+      path: "encrypted-state/infrastructure/keys.yaml"
+    
+    # Monitoring configurations with sensitive data
+    - apiVersion: v1
+      kind: ConfigMap
+      name: monitoring-config
+      namespace: monitoring
+      path: "encrypted-state/monitoring/config.yaml"
+```
+
+#### Setting Up All Encryption Types
+
+```bash
+# 1. SSH Keys
+kubectl create secret generic devops-ssh-keys \
+  --from-file=devops-team.pub=~/.ssh/team_rsa.pub \
+  --namespace=security
+
+# 2. YubiKey Setup
+# Extract YubiKey PIV public key
+ykman piv keys export 9a yubikey.pem
+ssh-keygen -i -m PKCS8 -f yubikey.pem > yubikey.pub
+kubectl create secret generic security-team-yubikeys \
+  --from-file=ciso-yubikey.pub=yubikey.pub \
+  --namespace=security
+
+# 3. Age Keys
+age-keygen -o emergency.key
+grep 'public key:' emergency.key | cut -d: -f2 | tr -d ' ' > emergency.pub
+kubectl create secret generic emergency-keys \
+  --from-file=break-glass-key=emergency.pub \
+  --namespace=security
+
+# 4. Passphrases
+kubectl create secret generic compliance-auth \
+  --from-literal=audit-passphrase="enterprise-compliance-key-2024" \
+  --namespace=security
+```
 
 ## Templating
 

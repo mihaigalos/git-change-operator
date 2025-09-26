@@ -437,6 +437,12 @@ spec:
         secretRef:
           name: passwords
           key: encryption-passphrase
+      
+      # YubiKey recipient (hardware security key)
+      - type: yubikey
+        secretRef:
+          name: yubikey-piv
+          key: public-key
 
   resourceRefs:
     - apiVersion: v1
@@ -478,13 +484,222 @@ metadata:
   namespace: default
 data:
   encryption-passphrase: bXktc2VjdXJlLXBhc3NwaHJhc2U=  # my-secure-passphrase
+
+---
+# Create YubiKey secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: yubikey-piv
+  namespace: default
+data:
+  public-key: c2stcHV0dHk6QUFBQUIzTnphQzF5YzJFQUFBQURBUUFCQUFBQmdRRHo...
 ```
 
 **Benefits of encryption:**
 - **Security**: Sensitive data is encrypted before being stored in Git
 - **Compliance**: Meet security requirements for storing secrets in repositories
-- **Flexibility**: Support for multiple encryption methods (age keys, SSH keys, passphrases)
+- **Flexibility**: Support for multiple encryption methods (age keys, SSH keys, passphrases, YubiKeys)
 - **GitOps-ready**: Encrypted files can be safely stored in public repositories
+
+### Complete Encryption Examples
+
+#### Basic Encrypted PullRequest
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: PullRequest
+metadata:
+  name: encrypted-config-pr
+  namespace: default
+spec:
+  repository: "https://github.com/myorg/secure-configs.git"
+  baseBranch: "main"
+  headBranch: "encrypted-secrets-update"
+  title: "Update encrypted application secrets"
+  body: |
+    Automated update of encrypted configuration files.
+    
+    Files are encrypted using age encryption for secure storage.
+    
+    **Files Updated:**
+    - Database credentials
+    - API keys
+    - TLS certificates
+  
+  authSecretRef: "git-credentials"
+  
+  # Encryption Configuration
+  encryption:
+    enabled: true
+    fileExtension: ".encrypted"  # Files will be saved as .encrypted
+    recipients:
+      - type: ssh
+        secretRef:
+          name: ssh-keys
+          key: id_rsa.pub
+  
+  files:
+    - path: "secrets/database.yaml"
+      content: |
+        database:
+          host: "production-db.example.com"
+          username: "app_user"
+          password: "super-secret-password-123"
+          ssl_mode: "require"
+    
+    - path: "secrets/api-keys.yaml"
+      content: |
+        api:
+          stripe_key: "sk_live_abcdefghijklmnop"
+          sendgrid_key: "SG.xyz123.abc456"
+          oauth_secret: "oauth_secret_token_xyz"
+```
+
+#### Multi-Recipient Encryption with YubiKey
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: PullRequest
+metadata:
+  name: multi-encryption-pr
+  namespace: default
+spec:
+  repository: "https://github.com/myorg/enterprise-config.git"
+  baseBranch: "main"
+  headBranch: "multi-encrypted-update"
+  title: "Multi-encrypted configuration update"
+  
+  authSecretRef: "git-credentials"
+  
+  # Multiple Encryption Recipients
+  encryption:
+    enabled: true
+    recipients:
+      # Team SSH keys
+      - type: ssh
+        secretRef:
+          name: team-ssh-keys
+          key: devops-team.pub
+      
+      # Hardware security keys
+      - type: yubikey
+        secretRef:
+          name: security-team-yubikeys
+          key: security-officer.pub
+      
+      # Emergency age key
+      - type: age
+        secretRef:
+          name: emergency-keys
+          key: break-glass-key
+      
+      # Backup passphrase
+      - type: passphrase
+        secretRef:
+          name: backup-auth
+          key: recovery-passphrase
+  
+  # Reference existing Kubernetes resources
+  resourceReferences:
+    - apiVersion: v1
+      kind: Secret
+      name: app-secrets
+      namespace: production
+      strategy: dump
+      output:
+        path: "production/secrets/app-secrets.yaml"
+        # Will be encrypted as: production/secrets/app-secrets.yaml.encrypted
+    
+    - apiVersion: v1
+      kind: ConfigMap
+      name: database-config
+      namespace: production
+      strategy: fields
+      output:
+        path: "production/config/"
+        # Each field becomes a separate encrypted file
+```
+
+#### Encrypted Resource Backup
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: PullRequest
+metadata:
+  name: backup-secrets-pr
+  namespace: backup-system
+spec:
+  repository: "https://github.com/myorg/cluster-backups.git"
+  baseBranch: "main"
+  headBranch: "automated-backup"
+  title: "Automated encrypted backup of cluster secrets"
+  
+  authSecretRef: "backup-git-credentials"
+  
+  encryption:
+    enabled: true
+    recipients:
+      - type: yubikey
+        secretRef:
+          name: backup-yubikey
+          key: backup-officer.pub
+  
+  # Backup multiple secrets across namespaces
+  resourceReferences:
+    # Production secrets
+    - apiVersion: v1
+      kind: Secret
+      name: database-credentials
+      namespace: production
+      strategy: dump
+      output:
+        path: "backups/production/database-credentials.yaml"
+    
+    # Staging secrets  
+    - apiVersion: v1
+      kind: Secret
+      name: api-tokens
+      namespace: staging
+      strategy: dump
+      output:
+        path: "backups/staging/api-tokens.yaml"
+    
+    # Certificate secrets
+    - apiVersion: v1
+      kind: Secret
+      name: tls-certificates
+      namespace: cert-manager
+      strategy: fields
+      output:
+        path: "backups/certificates/"
+        # Each certificate becomes a separate encrypted file
+```
+
+#### Setting Up Encryption Secrets
+
+```bash
+# 1. SSH Key Secret
+kubectl create secret generic ssh-keys \
+  --from-file=id_rsa.pub=~/.ssh/id_rsa.pub \
+  --namespace=default
+
+# 2. YubiKey Secret (extract public key from YubiKey PIV)
+kubectl create secret generic yubikey-piv \
+  --from-literal=public-key="$(ykman piv keys export 9a - | ssh-keygen -i -m PKCS8 -f /dev/stdin)" \
+  --namespace=default
+
+# 3. Age Key Secret  
+age-keygen -o age-key.txt
+kubectl create secret generic age-keys \
+  --from-file=public-key=<(grep 'public key:' age-key.txt | cut -d: -f2 | tr -d ' ') \
+  --namespace=default
+
+# 4. Passphrase Secret
+kubectl create secret generic passwords \
+  --from-literal=encryption-passphrase="my-secure-recovery-phrase" \
+  --namespace=default
+```
 
 ### PR Templates and Customization
 

@@ -122,7 +122,7 @@ Array of encryption recipients (keys/passphrases) used for file encryption.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | ✓ | Recipient type: "age", "ssh", or "passphrase" |
+| `type` | string | ✓ | Recipient type: "age", "ssh", "passphrase", or "yubikey" |
 | `value` | string | ✗ | Direct recipient value (not recommended for secrets) |
 | `secretRef` | object | ✗ | Reference to Kubernetes Secret containing the recipient |
 
@@ -151,6 +151,10 @@ spec:
         secretRef:
           name: passwords
           key: encryption-passphrase
+      - type: yubikey
+        secretRef:
+          name: yubikey-piv
+          key: public-key
 ```
 
 #### spec.resourceReferences

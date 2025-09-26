@@ -77,7 +77,10 @@ The operator supports age-based encryption for protecting sensitive files before
 1. **Use separate keys per environment**: Different keys for dev/staging/production
 2. **Store keys securely**: Use Kubernetes Secrets with proper RBAC restrictions
 3. **Rotate keys regularly**: Implement key rotation procedures
-4. **Prefer SSH/age keys over passphrases**: SSH and age keys provide better security than shared passphrases
+4. **Prefer hardware keys for maximum security**: YubiKey > SSH/age keys > passphrases
+   - **YubiKey**: Hardware-backed keys that never leave the device (highest security)
+   - **SSH/age keys**: File-based keys that provide good security
+   - **Passphrases**: Shared secrets with lower security (use sparingly)
 5. **Document key ownership**: Maintain records of who has access to which keys
 
 ### Secure Secret Configuration
