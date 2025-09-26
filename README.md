@@ -10,7 +10,7 @@
 
 A Kubernetes operator that enables automated Git operations from within clusters. Commit files directly or reference existing Kubernetes resources (Secrets, ConfigMaps, etc.) and push them to Git repositories with flexible output strategies.
 
-Docs: https://galos.one/git-change-operator
+Docs (under development): https://gco.galos.one
 
 ## Features
 
