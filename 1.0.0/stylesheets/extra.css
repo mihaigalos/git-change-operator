@@ -1,16 +1,26 @@
 /* Custom CSS for Git Change Operator documentation */
 
-/* Fix repository name truncation in header */
+/* Fix repository name truncation in header - override Material theme defaults */
 .md-source__repository {
-    white-space: nowrap;
-    overflow: visible;
-    text-overflow: unset;
-    max-width: none;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    max-width: none !important;
+    width: auto !important;
 }
 
 /* Ensure the source container has enough space */
 .md-header__source {
-    min-width: 280px;
+    min-width: 300px !important;
+    width: auto !important;
+}
+
+/* Also fix truncation in mobile sidebar */
+.md-nav__source .md-source__repository {
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    max-width: none !important;
 }
 
 /* Add any additional custom styling here if needed */
