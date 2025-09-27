@@ -4,12 +4,14 @@ on:
   push:
     branches: [ main ]
     paths:
+      - "README.md"
       - 'docs/**'
       - 'mkdocs.yml'
       - '.github/workflows/mkdocs.yaml'
   pull_request:
     branches: [ main ]
     paths:
+      - "README.md"
       - 'docs/**'
       - 'mkdocs.yml'
   release:
@@ -37,8 +39,13 @@ jobs:
       with:
         python-version: '3.x'
         
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r docs/mkdocs/requirements.txt
+        
     - name: Build documentation
-      run: make docs-build
+      run: mkdocs build
       
     - name: Check for broken links
       run: |
@@ -84,31 +91,31 @@ jobs:
         # The docs/ directory might conflict with docs branch name
         git clean -fd
 
-        # Check if gh-pages branch exists remotely and prepare git state
-        if ! git ls-remote --exit-code --heads origin gh-pages; then
-          echo "Creating new gh-pages branch for first deployment"
-          # Create and push an empty gh-pages branch first
-          git checkout --orphan gh-pages
+        # Check if docs branch exists remotely and prepare git state
+        if ! git ls-remote --exit-code --heads origin docs; then
+          echo "Creating new docs branch for first deployment"
+          # Create and push an empty docs branch first
+          git checkout --orphan docs
           git rm -rf .
           echo "# Documentation" > README.md
           git add README.md
-          git commit -m "Initialize gh-pages branch"
-          git push origin gh-pages
+          git commit -m "Initialize docs branch"
+          git push origin docs
           # Return to main branch
           git checkout main
         else
-          echo "gh-pages branch exists remotely, fetching it locally"
-          # Fetch the gh-pages branch to local git state
-          git fetch origin gh-pages:gh-pages 2>/dev/null || true
+          echo "Docs branch exists remotely, fetching it locally"
+          # Fetch the docs branch to local git state
+          git fetch origin docs:docs 2>/dev/null || true
         fi
         
         # Deploy with mike (mike handles branch switching internally)
-        mike deploy --push --remote origin --branch gh-pages ${CHART_VERSION} latest --update-aliases
+        mike deploy --push --remote origin --branch docs ${CHART_VERSION} latest --update-aliases
         
     - name: Deploy release version
       if: github.event_name == 'release'
       run: |
         VERSION=${GITHUB_REF#refs/tags/}
         # Deploy release version
-        mike deploy --push --remote origin --branch gh-pages --update-aliases $VERSION latest
-        mike set-default --push --remote origin --branch gh-pages $VERSION
+        mike deploy --push --remote origin --branch docs --update-aliases $VERSION latest
+        mike set-default --push --remote origin --branch docs $VERSION
