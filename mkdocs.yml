@@ -50,7 +50,6 @@ theme:
     - navigation.indexes
     - navigation.top
     - toc.follow
-    - toc.integrate
     - search.highlight
     - search.share
     - search.suggest
@@ -130,7 +129,9 @@ extra:
 
 nav:
   - Home: index.md
-  - Security: security.md
+  
+  - Security:
+    - Security Considerations: security/considerations.md
 
   - User Guide:
     - user-guide/index.md
@@ -162,7 +163,7 @@ nav:
     - development/index.md
     - Architecture: development/architecture.md
     - Testing: development/testing.md
-    - Embedded Chart: embedded-chart.md
+    - Embedded Chart: development/embedded-chart.md
 
 extra_css:
   - stylesheets/extra.css
