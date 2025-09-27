@@ -1,3 +1,16 @@
 /* Custom CSS for Git Change Operator documentation */
 
+/* Fix repository name truncation in header */
+.md-source__repository {
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: unset;
+    max-width: none;
+}
+
+/* Ensure the source container has enough space */
+.md-header__source {
+    min-width: 280px;
+}
+
 /* Add any additional custom styling here if needed */
