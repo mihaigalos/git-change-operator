@@ -84,38 +84,14 @@ jobs:
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: |
         CHART_VERSION=$(yq eval '.version' helm/git-change-operator/Chart.yaml)
-        echo "Using version from Chart.yaml: ${CHART_VERSION}"
-        yq eval ".extra.version.default = \"${CHART_VERSION}\"" -i mkdocs.yml
-        
-        # Clean up any potential git state conflicts
-        # The docs/ directory might conflict with docs branch name
-        git clean -fd
-
-        # Check if docs branch exists remotely and prepare git state
-        if ! git ls-remote --exit-code --heads origin docs; then
-          echo "Creating new docs branch for first deployment"
-          # Create and push an empty docs branch first
-          git checkout --orphan docs
-          git rm -rf .
-          echo "# Documentation" > README.md
-          git add README.md
-          git commit -m "Initialize docs branch"
-          git push origin docs
-          # Return to main branch
-          git checkout main
-        else
-          echo "Docs branch exists remotely, fetching it locally"
-          # Fetch the docs branch to local git state
-          git fetch origin docs:docs 2>/dev/null || true
-        fi
-        
-        # Deploy with mike (mike handles branch switching internally)
-        mike deploy --push --remote origin --branch docs ${CHART_VERSION} latest --update-aliases
+        echo "Deploying documentation version: ${CHART_VERSION}"
+        make docs-version-deploy VERSION=${CHART_VERSION}
+        make docs-version-set-default VERSION=${CHART_VERSION}
         
     - name: Deploy release version
       if: github.event_name == 'release'
       run: |
         VERSION=${GITHUB_REF#refs/tags/}
-        # Deploy release version
-        mike deploy --push --remote origin --branch docs --update-aliases $VERSION latest
-        mike set-default --push --remote origin --branch docs $VERSION
+        echo "Deploying release documentation version: ${VERSION}"
+        make docs-version-deploy VERSION=${VERSION}
+        make docs-version-set-default VERSION=${VERSION}
