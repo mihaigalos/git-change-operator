@@ -80,6 +80,17 @@ jobs:
       run: |
         git lfs pull
         
+    - name: Verify LFS files are resolved
+      run: |
+        echo "Checking if LFS files are properly resolved..."
+        if file docs/images/git-change-operator-logo.png | grep -q "PNG image data"; then
+          echo "✅ Logo file is properly resolved as PNG binary"
+        else
+          echo "❌ Logo file is still an LFS pointer, not binary data"
+          echo "File type: $(file docs/images/git-change-operator-logo.png)"
+          exit 1
+        fi
+        
     - name: Configure Git
       run: |
         git config --global user.name "github-actions[bot]"
