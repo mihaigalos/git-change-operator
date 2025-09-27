@@ -401,7 +401,7 @@ helm-deploy: docker-build docker-push helm-package helm-install ## Build, push, 
 docs-prepare: # Prepare README for MkDocs by temporarily removing docs/ prefix from links (hidden)
 	@echo "Backing up README.md and creating MkDocs-compatible version..."
 	@cp README.md README.md.bak
-	@sed -i.tmp 's|](docs/|](|g' README.md && rm README.md.tmp
+	@sed -i.tmp '11,$$s|](docs/|](|g' README.md && rm README.md.tmp
 	@echo "README.md prepared for MkDocs (backup at README.md.bak)"
 
 docs-restore: # Restore original README.md after docs operations (hidden)

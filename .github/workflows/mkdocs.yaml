@@ -4,6 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
+      - Makefile
       - "README.md"
       - 'docs/**'
       - 'mkdocs.yml'
@@ -11,6 +12,7 @@ on:
   pull_request:
     branches: [ main ]
     paths:
+      - Makefile
       - "README.md"
       - 'docs/**'
       - 'mkdocs.yml'
@@ -33,6 +35,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+      with:
+        lfs: true  # Enable Git LFS checkout
       
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -60,6 +64,7 @@ jobs:
       with:
         fetch-depth: 0  # Fetch all history for versioning
         token: ${{ secrets.GITHUB_TOKEN }}
+        lfs: true  # Enable Git LFS checkout
         
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -70,6 +75,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r docs/mkdocs/requirements.txt
+        
+    - name: Pull LFS files
+      run: |
+        git lfs pull
         
     - name: Configure Git
       run: |
