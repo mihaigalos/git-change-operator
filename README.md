@@ -8,7 +8,7 @@
 [![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml)
 [![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml)
 
-A Kubernetes operator that enables automated Git operations from within clusters. Commit files directly or reference existing Kubernetes resources (ecrypt Secrets, ConfigMaps, etc.) and push them to Git repositories with flexible output strategies.
+A Kubernetes operator that enables automated Git operations from within clusters. Commit files directly or reference existing Kubernetes resources (encrypt Secrets, ConfigMaps, etc.) and push them to Git repositories with flexible output strategies.
 
 Docs (under development): https://gco.galos.one
 
