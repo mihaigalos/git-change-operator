@@ -10,7 +10,7 @@
 
 A Kubernetes operator that enables automated Git operations from within clusters. Commit files directly or reference existing Kubernetes resources (encrypt Secrets, ConfigMaps, etc.) and push them to Git repositories with flexible output strategies.
 
-Docs (under development): https://gco.galos.one
+Docs: https://gco.galos.one
 
 ## Features
 
