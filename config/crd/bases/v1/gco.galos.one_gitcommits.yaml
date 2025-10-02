@@ -94,6 +94,11 @@ spec:
                       type: string
                     path:
                       type: string
+                    useRestAPIData:
+                      description: |-
+                        UseRestAPIData indicates this file content should be the formatted REST API response
+                        When true, Content is ignored and the file will contain the API response data
+                      type: boolean
                   required:
                   - content
                   - path
@@ -188,6 +193,34 @@ spec:
                     - HEAD
                     - OPTIONS
                     type: string
+                  responseParsing:
+                    description: ResponseParsing configures how to parse and use the
+                      JSON response
+                    properties:
+                      conditionField:
+                        description: |-
+                          ConditionField is the JSON path to check for proceeding (e.g., "status")
+                          The operation will only proceed if this field equals ConditionValue
+                        type: string
+                      conditionValue:
+                        description: ConditionValue is the expected value for the
+                          condition field (e.g., "success")
+                        type: string
+                      dataFields:
+                        description: DataFields are JSON paths to extract data from
+                          the response (e.g., ["data.result[0]", "data.result[1]"])
+                        items:
+                          type: string
+                        type: array
+                      includeTimestamp:
+                        description: IncludeTimestamp adds an ISO 8601 timestamp as
+                          the first field in the output
+                        type: boolean
+                      separator:
+                        description: 'Separator is used to join the extracted data
+                          fields (default: ", ")'
+                        type: string
+                    type: object
                   timeoutSeconds:
                     default: 30
                     description: 'TimeoutSeconds is the request timeout in seconds
@@ -230,6 +263,16 @@ spec:
                     description: ConditionMet indicates if the API response met the
                       conditions for proceeding
                     type: boolean
+                  extractedData:
+                    description: ExtractedData contains the data extracted from the
+                      last successful API response
+                    items:
+                      type: string
+                    type: array
+                  formattedOutput:
+                    description: FormattedOutput contains the final formatted string
+                      that will be used in commit content
+                    type: string
                   lastCallTime:
                     description: LastCallTime is when the API was last called
                     format: date-time

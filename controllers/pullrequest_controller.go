@@ -30,11 +30,13 @@ import (
 
 	gitv1 "github.com/mihaigalos/git-change-operator/api/v1"
 	"github.com/mihaigalos/git-change-operator/pkg/encryption"
+	"github.com/mihaigalos/git-change-operator/pkg/jsonpath"
 )
 
 type PullRequestReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme           *runtime.Scheme
+	metricsCollector *MetricsCollector
 }
 
 //+kubebuilder:rbac:groups=gco.galos.one,resources=pullrequests,verbs=get;list;watch;create;update;patch;delete
@@ -45,6 +47,11 @@ type PullRequestReconciler struct {
 
 func (r *PullRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
+
+	// Initialize metrics collector if not already set
+	if r.metricsCollector == nil {
+		r.metricsCollector = NewMetricsCollector("pullrequest")
+	}
 
 	var pullRequest gitv1.PullRequest
 	if err := r.Get(ctx, req.NamespacedName, &pullRequest); err != nil {
@@ -290,6 +297,21 @@ func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1
 
 	// Process regular files
 	for _, file := range pr.Spec.Files {
+		var content []byte
+
+		// Determine content source
+		if file.UseRestAPIData {
+			// Use REST API response data
+			if pr.Status.RestAPIStatus != nil && pr.Status.RestAPIStatus.FormattedOutput != "" {
+				content = []byte(pr.Status.RestAPIStatus.FormattedOutput)
+			} else {
+				return 0, "", fmt.Errorf("file %s requested REST API data but no formatted output available", file.Path)
+			}
+		} else {
+			// Use provided content
+			content = []byte(file.Content)
+		}
+
 		filePath := filepath.Join(tempDir, file.Path)
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
@@ -297,7 +319,6 @@ func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1
 		}
 
 		// Encrypt file content if encryption is enabled
-		content := []byte(file.Content)
 		if encryption.ShouldEncryptFile(file.Path, pr.Spec.Encryption) {
 			encryptedContent, err := r.encryptFileContent(ctx, content, pr.Spec.Encryption, pr.Namespace)
 			if err != nil {
@@ -511,38 +532,47 @@ func (r *PullRequestReconciler) resolveRecipients(ctx context.Context, recipient
 
 func (r *PullRequestReconciler) checkRestAPICondition(ctx context.Context, pr *gitv1.PullRequest) (bool, error) {
 	log := log.FromContext(ctx)
-	
+
 	if pr.Spec.RestAPI == nil {
 		// No REST API condition specified, proceed with git operation
 		return true, nil
 	}
 
 	restAPI := pr.Spec.RestAPI
-	log.Info("Checking REST API condition", "url", restAPI.URL, "method", restAPI.Method)
+
+	// Set defaults
+	method := "GET"
+	if restAPI.Method != "" {
+		method = restAPI.Method
+	}
+
+	timeoutSeconds := 30
+	if restAPI.TimeoutSeconds > 0 {
+		timeoutSeconds = restAPI.TimeoutSeconds
+	}
 
 	// Create HTTP client with timeout
-	timeout := time.Duration(restAPI.TimeoutSeconds) * time.Second
-	if timeout == 0 {
-		timeout = 30 * time.Second // default timeout
+	client := &http.Client{
+		Timeout: time.Duration(timeoutSeconds) * time.Second,
 	}
-	client := &http.Client{Timeout: timeout}
 
 	// Create request
-	method := restAPI.Method
-	if method == "" {
-		method = "GET"
+	var body io.Reader
+	if restAPI.Body != "" {
+		body = strings.NewReader(restAPI.Body)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, restAPI.URL, nil)
+
+	req, err := http.NewRequestWithContext(ctx, method, restAPI.URL, body)
 	if err != nil {
 		return false, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
 	// Add headers
-	for name, value := range restAPI.Headers {
-		req.Header.Set(name, value)
+	for key, value := range restAPI.Headers {
+		req.Header.Set(key, value)
 	}
 
-	// Add authentication if specified
+	// Add authentication if configured
 	if restAPI.AuthSecretRef != "" {
 		token, err := r.getTokenFromSecret(ctx, pr.Namespace, restAPI.AuthSecretRef, restAPI.AuthSecretKey)
 		if err != nil {
@@ -552,41 +582,173 @@ func (r *PullRequestReconciler) checkRestAPICondition(ctx context.Context, pr *g
 	}
 
 	// Make the request
+	startTime := time.Now()
 	resp, err := client.Do(req)
+	duration := time.Since(startTime)
+
+	// Initialize status
+	if pr.Status.RestAPIStatus == nil {
+		pr.Status.RestAPIStatus = &gitv1.RestAPIStatus{}
+	}
+
+	now := metav1.Now()
+	pr.Status.RestAPIStatus.LastCallTime = &now
+	pr.Status.RestAPIStatus.CallCount++
+
 	if err != nil {
+		// Record failed request metrics
+		r.metricsCollector.RecordAPIRequest(restAPI.URL, method, "error", duration, 0)
+		pr.Status.RestAPIStatus.LastError = err.Error()
+		log.Error(err, "REST API call failed", "url", restAPI.URL, "duration", duration)
 		return false, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Read response for logging
-	body, _ := io.ReadAll(resp.Body)
-	log.Info("REST API response", "status", resp.StatusCode, "body", string(body))
-
-	// Update status
-	if pr.Status.RestAPIStatus == nil {
-		pr.Status.RestAPIStatus = &gitv1.RestAPIStatus{}
-	}
-	now := metav1.Now()
-	pr.Status.RestAPIStatus.LastCallTime = &now
 	pr.Status.RestAPIStatus.LastStatusCode = resp.StatusCode
-	pr.Status.RestAPIStatus.LastResponse = string(body)
 
-	// Check if response meets the condition
-	maxStatusCode := restAPI.MaxStatusCode
-	if maxStatusCode == 0 {
-		maxStatusCode = 399 // default
+	// Read full response body for processing
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		// Record metrics for successful HTTP but failed body read
+		r.metricsCollector.RecordAPIRequest(restAPI.URL, method, fmt.Sprintf("%d", resp.StatusCode), duration, 0)
+		pr.Status.RestAPIStatus.LastError = fmt.Sprintf("failed to read response: %v", err)
+		return false, fmt.Errorf("failed to read response body: %w", err)
 	}
-	shouldProceed := resp.StatusCode <= maxStatusCode
-	pr.Status.RestAPIStatus.ConditionMet = shouldProceed
+
+	// Record successful request metrics
+	r.metricsCollector.RecordAPIRequest(restAPI.URL, method, fmt.Sprintf("%d", resp.StatusCode), duration, int64(len(respBody)))
+
+	// Store truncated response for status (max 1024 chars)
+	if len(respBody) > 1024 {
+		pr.Status.RestAPIStatus.LastResponse = string(respBody[:1024]) + "... (truncated)"
+	} else {
+		pr.Status.RestAPIStatus.LastResponse = string(respBody)
+	}
+
+	// Check HTTP status code first
+	httpConditionMet := false
+	if len(restAPI.ExpectedStatusCodes) > 0 {
+		for _, expected := range restAPI.ExpectedStatusCodes {
+			if resp.StatusCode == expected {
+				httpConditionMet = true
+				break
+			}
+		}
+	} else {
+		maxStatusCode := 399
+		if restAPI.MaxStatusCode > 0 {
+			maxStatusCode = restAPI.MaxStatusCode
+		}
+		httpConditionMet = resp.StatusCode <= maxStatusCode
+	}
+
+	if !httpConditionMet {
+		r.metricsCollector.RecordConditionCheck("http_status_failed")
+		pr.Status.RestAPIStatus.ConditionMet = false
+		pr.Status.RestAPIStatus.LastError = fmt.Sprintf("HTTP status condition not met: %d", resp.StatusCode)
+		log.Info("REST API HTTP status condition not met", "statusCode", resp.StatusCode)
+		return false, nil
+	}
+
+	// Process JSON response if parsing is configured
+	conditionMet := true
+	if restAPI.ResponseParsing != nil {
+		var err error
+		conditionMet, err = r.processJSONResponse(ctx, pr, respBody, restAPI.ResponseParsing)
+		if err != nil {
+			r.metricsCollector.RecordJSONParsingError("processing_failed")
+			pr.Status.RestAPIStatus.LastError = fmt.Sprintf("JSON processing failed: %v", err)
+			log.Error(err, "Failed to process JSON response")
+			return false, fmt.Errorf("JSON processing failed: %w", err)
+		}
+	}
+
+	pr.Status.RestAPIStatus.ConditionMet = conditionMet
+	pr.Status.RestAPIStatus.LastError = ""
+
+	if conditionMet {
+		pr.Status.RestAPIStatus.SuccessCount++
+		r.metricsCollector.RecordConditionCheck("success")
+	} else {
+		r.metricsCollector.RecordConditionCheck("json_condition_failed")
+	}
 
 	// Update the PullRequest status
 	if err := r.Status().Update(ctx, pr); err != nil {
-		log.Error(err, "Failed to update PullRequest status after REST API call")
-		// Continue despite status update failure
+		log.Error(err, "failed to update PullRequest status")
 	}
 
-	log.Info("REST API condition result", "conditionMet", shouldProceed, "statusCode", resp.StatusCode, "maxStatusCode", maxStatusCode)
-	return shouldProceed, nil
+	log.Info("REST API call completed",
+		"url", restAPI.URL,
+		"method", method,
+		"statusCode", resp.StatusCode,
+		"conditionMet", conditionMet,
+		"duration", duration)
+
+	return conditionMet, nil
+}
+
+// processJSONResponse processes the JSON response and extracts data according to the parsing configuration
+func (r *PullRequestReconciler) processJSONResponse(ctx context.Context, pr *gitv1.PullRequest, respBody []byte, parsing *gitv1.ResponseParsing) (bool, error) {
+	log := log.FromContext(ctx)
+
+	// Check condition field if specified
+	if parsing.ConditionField != "" && parsing.ConditionValue != "" {
+		conditionValue, err := jsonpath.ExtractValue(respBody, parsing.ConditionField)
+		if err != nil {
+			r.metricsCollector.RecordJSONParsingError("condition_field_extraction_failed")
+			return false, fmt.Errorf("failed to extract condition field %s: %w", parsing.ConditionField, err)
+		}
+
+		if conditionValue != parsing.ConditionValue {
+			log.Info("JSON condition not met",
+				"field", parsing.ConditionField,
+				"expected", parsing.ConditionValue,
+				"actual", conditionValue)
+			return false, nil
+		}
+
+		log.Info("JSON condition met",
+			"field", parsing.ConditionField,
+			"value", conditionValue)
+	}
+
+	// Extract data fields if specified
+	if len(parsing.DataFields) > 0 {
+		extractedData, err := jsonpath.ExtractMultipleValues(respBody, parsing.DataFields)
+		if err != nil {
+			r.metricsCollector.RecordJSONParsingError("data_field_extraction_failed")
+			return false, fmt.Errorf("failed to extract data fields: %w", err)
+		}
+
+		pr.Status.RestAPIStatus.ExtractedData = extractedData
+
+		// Create formatted output
+		separator := parsing.Separator
+		if separator == "" {
+			separator = ", "
+		}
+
+		var outputParts []string
+
+		// Add timestamp if requested
+		if parsing.IncludeTimestamp {
+			timestamp := time.Now().Format(time.RFC3339)
+			outputParts = append(outputParts, timestamp)
+		}
+
+		// Add extracted data
+		outputParts = append(outputParts, extractedData...)
+
+		pr.Status.RestAPIStatus.FormattedOutput = strings.Join(outputParts, separator)
+
+		log.Info("Data extracted from JSON response",
+			"dataFields", parsing.DataFields,
+			"extractedData", extractedData,
+			"formattedOutput", pr.Status.RestAPIStatus.FormattedOutput)
+	}
+
+	return true, nil
 }
 
 func (r *PullRequestReconciler) getTokenFromSecret(ctx context.Context, namespace, secretName, secretKey string) (string, error) {

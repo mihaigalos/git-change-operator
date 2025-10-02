@@ -10,66 +10,94 @@ type RestAPI struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern="^https?://.*"
 	URL string `json:"url"`
-	
+
 	// Method is the HTTP method to use (default: GET)
 	// +kubebuilder:validation:Enum=GET;POST;PUT;PATCH;DELETE;HEAD;OPTIONS
 	// +kubebuilder:default=GET
 	Method string `json:"method,omitempty"`
-	
+
 	// Headers contains HTTP headers to send with the request
 	Headers map[string]string `json:"headers,omitempty"`
-	
+
 	// Body is the request body for POST/PUT/PATCH requests
 	Body string `json:"body,omitempty"`
-	
+
 	// AuthSecretRef references a secret containing authentication credentials
 	AuthSecretRef string `json:"authSecretRef,omitempty"`
-	
+
 	// AuthSecretKey is the key in the auth secret (default: token)
 	AuthSecretKey string `json:"authSecretKey,omitempty"`
-	
+
 	// ExpectedStatusCodes defines acceptable HTTP response codes
 	// If empty, defaults to [200, 201, 202, 204]
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=10
 	ExpectedStatusCodes []int `json:"expectedStatusCodes,omitempty"`
-	
+
 	// MaxStatusCode is the maximum acceptable status code (default: 399)
 	// Responses >= this value will prevent the GitCommit/PullRequest from executing
 	// +kubebuilder:validation:Minimum=100
 	// +kubebuilder:validation:Maximum=599
 	// +kubebuilder:default=399
 	MaxStatusCode int `json:"maxStatusCode,omitempty"`
-	
+
 	// TimeoutSeconds is the request timeout in seconds (default: 30)
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=300
 	// +kubebuilder:default=30
 	TimeoutSeconds int `json:"timeoutSeconds,omitempty"`
+
+	// ResponseParsing configures how to parse and use the JSON response
+	ResponseParsing *ResponseParsing `json:"responseParsing,omitempty"`
+}
+
+// ResponseParsing defines how to parse JSON responses and extract data
+type ResponseParsing struct {
+	// ConditionField is the JSON path to check for proceeding (e.g., "status")
+	// The operation will only proceed if this field equals ConditionValue
+	ConditionField string `json:"conditionField,omitempty"`
+
+	// ConditionValue is the expected value for the condition field (e.g., "success")
+	ConditionValue string `json:"conditionValue,omitempty"`
+
+	// DataFields are JSON paths to extract data from the response (e.g., ["data.result[0]", "data.result[1]"])
+	DataFields []string `json:"dataFields,omitempty"`
+
+	// IncludeTimestamp adds an ISO 8601 timestamp as the first field in the output
+	IncludeTimestamp bool `json:"includeTimestamp,omitempty"`
+
+	// Separator is used to join the extracted data fields (default: ", ")
+	Separator string `json:"separator,omitempty"`
 }
 
 // RestAPIStatus tracks the status of REST API calls
 type RestAPIStatus struct {
 	// LastCallTime is when the API was last called
 	LastCallTime *metav1.Time `json:"lastCallTime,omitempty"`
-	
+
 	// LastStatusCode is the HTTP status code from the last call
 	LastStatusCode int `json:"lastStatusCode,omitempty"`
-	
+
 	// LastResponse is a truncated version of the last response body (max 1024 chars)
 	LastResponse string `json:"lastResponse,omitempty"`
-	
+
 	// LastError is the error message from the last failed call
 	LastError string `json:"lastError,omitempty"`
-	
+
 	// CallCount is the total number of API calls made
 	CallCount int64 `json:"callCount,omitempty"`
-	
+
 	// SuccessCount is the number of successful API calls
 	SuccessCount int64 `json:"successCount,omitempty"`
-	
+
 	// ConditionMet indicates if the API response met the conditions for proceeding
 	ConditionMet bool `json:"conditionMet,omitempty"`
+
+	// ExtractedData contains the data extracted from the last successful API response
+	ExtractedData []string `json:"extractedData,omitempty"`
+
+	// FormattedOutput contains the final formatted string that will be used in commit content
+	FormattedOutput string `json:"formattedOutput,omitempty"`
 }
 
 type GitCommitSpec struct {
@@ -87,6 +115,10 @@ type GitCommitSpec struct {
 type File struct {
 	Path    string `json:"path"`
 	Content string `json:"content"`
+
+	// UseRestAPIData indicates this file content should be the formatted REST API response
+	// When true, Content is ignored and the file will contain the API response data
+	UseRestAPIData bool `json:"useRestAPIData,omitempty"`
 }
 
 type ResourceRef struct {
@@ -151,11 +183,11 @@ const (
 )
 
 type GitCommitStatus struct {
-	CommitSHA        string          `json:"commitSHA,omitempty"`
-	Phase            GitCommitPhase  `json:"phase,omitempty"`
-	Message          string          `json:"message,omitempty"`
-	LastSync         *metav1.Time    `json:"lastSync,omitempty"`
-	RestAPIStatus    *RestAPIStatus  `json:"restAPIStatus,omitempty"`
+	CommitSHA     string         `json:"commitSHA,omitempty"`
+	Phase         GitCommitPhase `json:"phase,omitempty"`
+	Message       string         `json:"message,omitempty"`
+	LastSync      *metav1.Time   `json:"lastSync,omitempty"`
+	RestAPIStatus *RestAPIStatus `json:"restAPIStatus,omitempty"`
 }
 
 type GitCommitPhase string

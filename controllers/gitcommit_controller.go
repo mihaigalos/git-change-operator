@@ -30,11 +30,13 @@ import (
 
 	gitv1 "github.com/mihaigalos/git-change-operator/api/v1"
 	"github.com/mihaigalos/git-change-operator/pkg/encryption"
+	"github.com/mihaigalos/git-change-operator/pkg/jsonpath"
 )
 
 type GitCommitReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme           *runtime.Scheme
+	metricsCollector *MetricsCollector
 }
 
 //+kubebuilder:rbac:groups=gco.galos.one,resources=gitcommits,verbs=get;list;watch;create;update;patch;delete
@@ -44,6 +46,11 @@ type GitCommitReconciler struct {
 
 func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
+
+	// Initialize metrics collector if not already set
+	if r.metricsCollector == nil {
+		r.metricsCollector = NewMetricsCollector("gitcommit")
+	}
 
 	var gitCommit gitv1.GitCommit
 	if err := r.Get(ctx, req.NamespacedName, &gitCommit); err != nil {
@@ -70,13 +77,13 @@ func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhaseFailed, fmt.Sprintf("REST API check failed: %v", err))
 			return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
 		}
-		
+
 		if !conditionMet {
 			log.Info("REST API condition not met, skipping git commit")
 			r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhasePending, "REST API condition not met, waiting...")
 			return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
 		}
-		
+
 		log.Info("REST API condition met, proceeding with git commit")
 	}
 
@@ -176,7 +183,21 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 	}
 
 	for _, file := range gitCommit.Spec.Files {
-		content := []byte(file.Content)
+		var content []byte
+
+		// Determine content source
+		if file.UseRestAPIData {
+			// Use REST API response data
+			if gitCommit.Status.RestAPIStatus != nil && gitCommit.Status.RestAPIStatus.FormattedOutput != "" {
+				content = []byte(gitCommit.Status.RestAPIStatus.FormattedOutput)
+			} else {
+				return "", fmt.Errorf("file %s requested REST API data but no formatted output available", file.Path)
+			}
+		} else {
+			// Use provided content
+			content = []byte(file.Content)
+		}
+
 		targetPath := file.Path
 
 		// Encrypt content if encryption is enabled
@@ -449,48 +470,43 @@ func (r *GitCommitReconciler) resolveRecipients(ctx context.Context, recipients 
 	return resolved, nil
 }
 
-// checkRestAPICondition checks if the REST API condition is met for proceeding with git operations
+// checkRestAPICondition checks if the REST API condition is met and extracts data for use in commits
 func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitCommit *gitv1.GitCommit) (bool, error) {
 	log := log.FromContext(ctx)
 	restAPI := gitCommit.Spec.RestAPI
-	
+
 	// Set defaults
 	method := "GET"
 	if restAPI.Method != "" {
 		method = restAPI.Method
 	}
-	
+
 	timeoutSeconds := 30
 	if restAPI.TimeoutSeconds > 0 {
 		timeoutSeconds = restAPI.TimeoutSeconds
 	}
-	
-	maxStatusCode := 399
-	if restAPI.MaxStatusCode > 0 {
-		maxStatusCode = restAPI.MaxStatusCode
-	}
-	
+
 	// Create HTTP client with timeout
 	client := &http.Client{
 		Timeout: time.Duration(timeoutSeconds) * time.Second,
 	}
-	
+
 	// Create request
 	var body io.Reader
 	if restAPI.Body != "" {
 		body = bytes.NewReader([]byte(restAPI.Body))
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, method, restAPI.URL, body)
 	if err != nil {
 		return false, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
-	
+
 	// Add headers
 	for key, value := range restAPI.Headers {
 		req.Header.Set(key, value)
 	}
-	
+
 	// Add authentication if configured
 	if restAPI.AuthSecretRef != "" {
 		token, err := r.getTokenFromSecret(ctx, gitCommit.Namespace, restAPI.AuthSecretRef, restAPI.AuthSecretKey)
@@ -499,72 +515,175 @@ func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitComm
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	
+
 	// Make the request
 	startTime := time.Now()
 	resp, err := client.Do(req)
 	duration := time.Since(startTime)
-	
-	// Update status regardless of success/failure
+
+	// Initialize status
 	if gitCommit.Status.RestAPIStatus == nil {
 		gitCommit.Status.RestAPIStatus = &gitv1.RestAPIStatus{}
 	}
-	
+
 	now := metav1.Now()
 	gitCommit.Status.RestAPIStatus.LastCallTime = &now
 	gitCommit.Status.RestAPIStatus.CallCount++
-	
+
 	if err != nil {
+		// Record failed request metrics
+		r.metricsCollector.RecordAPIRequest(restAPI.URL, method, "error", duration, 0)
 		gitCommit.Status.RestAPIStatus.LastError = err.Error()
 		log.Error(err, "REST API call failed", "url", restAPI.URL, "duration", duration)
 		return false, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	gitCommit.Status.RestAPIStatus.LastStatusCode = resp.StatusCode
-	
-	// Read response body (truncated to 1024 chars)
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
-	if err == nil {
+
+	// Read full response body for processing
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		// Record metrics for successful HTTP but failed body read
+		r.metricsCollector.RecordAPIRequest(restAPI.URL, method, fmt.Sprintf("%d", resp.StatusCode), duration, 0)
+		gitCommit.Status.RestAPIStatus.LastError = fmt.Sprintf("failed to read response: %v", err)
+		return false, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Record successful request metrics
+	r.metricsCollector.RecordAPIRequest(restAPI.URL, method, fmt.Sprintf("%d", resp.StatusCode), duration, int64(len(respBody)))
+
+	// Store truncated response for status (max 1024 chars)
+	if len(respBody) > 1024 {
+		gitCommit.Status.RestAPIStatus.LastResponse = string(respBody[:1024]) + "... (truncated)"
+	} else {
 		gitCommit.Status.RestAPIStatus.LastResponse = string(respBody)
 	}
-	
-	// Check if status code meets conditions
-	conditionMet := false
-	
-	// First check explicit expected status codes if provided
+
+	// Check HTTP status code first
+	httpConditionMet := false
 	if len(restAPI.ExpectedStatusCodes) > 0 {
 		for _, expected := range restAPI.ExpectedStatusCodes {
 			if resp.StatusCode == expected {
-				conditionMet = true
+				httpConditionMet = true
 				break
 			}
 		}
 	} else {
-		// Use maxStatusCode threshold (default behavior)
-		conditionMet = resp.StatusCode < maxStatusCode
+		maxStatusCode := 399
+		if restAPI.MaxStatusCode > 0 {
+			maxStatusCode = restAPI.MaxStatusCode
+		}
+		httpConditionMet = resp.StatusCode <= maxStatusCode
 	}
-	
+
+	if !httpConditionMet {
+		r.metricsCollector.RecordConditionCheck("http_status_failed")
+		gitCommit.Status.RestAPIStatus.ConditionMet = false
+		gitCommit.Status.RestAPIStatus.LastError = fmt.Sprintf("HTTP status condition not met: %d", resp.StatusCode)
+		log.Info("REST API HTTP status condition not met", "statusCode", resp.StatusCode)
+		return false, nil
+	}
+
+	// Process JSON response if parsing is configured
+	conditionMet := true
+	if restAPI.ResponseParsing != nil {
+		var err error
+		conditionMet, err = r.processJSONResponse(ctx, gitCommit, respBody, restAPI.ResponseParsing)
+		if err != nil {
+			r.metricsCollector.RecordJSONParsingError("processing_failed")
+			gitCommit.Status.RestAPIStatus.LastError = fmt.Sprintf("JSON processing failed: %v", err)
+			log.Error(err, "Failed to process JSON response")
+			return false, fmt.Errorf("JSON processing failed: %w", err)
+		}
+	}
+
 	gitCommit.Status.RestAPIStatus.ConditionMet = conditionMet
 	gitCommit.Status.RestAPIStatus.LastError = ""
-	
+
 	if conditionMet {
 		gitCommit.Status.RestAPIStatus.SuccessCount++
+		r.metricsCollector.RecordConditionCheck("success")
+	} else {
+		r.metricsCollector.RecordConditionCheck("json_condition_failed")
 	}
-	
+
 	// Update the GitCommit status
 	if err := r.Status().Update(ctx, gitCommit); err != nil {
 		log.Error(err, "failed to update GitCommit status")
 	}
-	
-	log.Info("REST API call completed", 
-		"url", restAPI.URL, 
+
+	log.Info("REST API call completed",
+		"url", restAPI.URL,
 		"method", method,
 		"statusCode", resp.StatusCode,
 		"conditionMet", conditionMet,
 		"duration", duration)
-	
+
 	return conditionMet, nil
+}
+
+// processJSONResponse processes the JSON response and extracts data according to the parsing configuration
+func (r *GitCommitReconciler) processJSONResponse(ctx context.Context, gitCommit *gitv1.GitCommit, respBody []byte, parsing *gitv1.ResponseParsing) (bool, error) {
+	log := log.FromContext(ctx)
+
+	// Check condition field if specified
+	if parsing.ConditionField != "" && parsing.ConditionValue != "" {
+		conditionValue, err := jsonpath.ExtractValue(respBody, parsing.ConditionField)
+		if err != nil {
+			r.metricsCollector.RecordJSONParsingError("condition_field_extraction_failed")
+			return false, fmt.Errorf("failed to extract condition field %s: %w", parsing.ConditionField, err)
+		}
+
+		if conditionValue != parsing.ConditionValue {
+			log.Info("JSON condition not met",
+				"field", parsing.ConditionField,
+				"expected", parsing.ConditionValue,
+				"actual", conditionValue)
+			return false, nil
+		}
+
+		log.Info("JSON condition met",
+			"field", parsing.ConditionField,
+			"value", conditionValue)
+	}
+
+	// Extract data fields if specified
+	if len(parsing.DataFields) > 0 {
+		extractedData, err := jsonpath.ExtractMultipleValues(respBody, parsing.DataFields)
+		if err != nil {
+			r.metricsCollector.RecordJSONParsingError("data_field_extraction_failed")
+			return false, fmt.Errorf("failed to extract data fields: %w", err)
+		}
+
+		gitCommit.Status.RestAPIStatus.ExtractedData = extractedData
+
+		// Create formatted output
+		separator := parsing.Separator
+		if separator == "" {
+			separator = ", "
+		}
+
+		var outputParts []string
+
+		// Add timestamp if requested
+		if parsing.IncludeTimestamp {
+			timestamp := time.Now().Format(time.RFC3339)
+			outputParts = append(outputParts, timestamp)
+		}
+
+		// Add extracted data
+		outputParts = append(outputParts, extractedData...)
+
+		gitCommit.Status.RestAPIStatus.FormattedOutput = strings.Join(outputParts, separator)
+
+		log.Info("Data extracted from JSON response",
+			"dataFields", parsing.DataFields,
+			"extractedData", extractedData,
+			"formattedOutput", gitCommit.Status.RestAPIStatus.FormattedOutput)
+	}
+
+	return true, nil
 }
 
 // getTokenFromSecret retrieves a token from a Kubernetes secret for REST API authentication
@@ -573,17 +692,17 @@ func (r *GitCommitReconciler) getTokenFromSecret(ctx context.Context, namespace,
 	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &secret); err != nil {
 		return "", err
 	}
-	
+
 	key := secretKey
 	if key == "" {
 		key = "token"
 	}
-	
+
 	token, exists := secret.Data[key]
 	if !exists {
 		return "", fmt.Errorf("key %s not found in secret %s", key, secretName)
 	}
-	
+
 	return string(token), nil
 }
 
