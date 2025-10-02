@@ -608,11 +608,6 @@ func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitComm
 		r.metricsCollector.RecordConditionCheck("json_condition_failed")
 	}
 
-	// Update the GitCommit status
-	if err := r.Status().Update(ctx, gitCommit); err != nil {
-		log.Error(err, "failed to update GitCommit status")
-	}
-
 	log.Info("REST API call completed",
 		"url", restAPI.URL,
 		"method", method,

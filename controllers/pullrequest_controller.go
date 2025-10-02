@@ -673,11 +673,6 @@ func (r *PullRequestReconciler) checkRestAPICondition(ctx context.Context, pr *g
 		r.metricsCollector.RecordConditionCheck("json_condition_failed")
 	}
 
-	// Update the PullRequest status
-	if err := r.Status().Update(ctx, pr); err != nil {
-		log.Error(err, "failed to update PullRequest status")
-	}
-
 	log.Info("REST API call completed",
 		"url", restAPI.URL,
 		"method", method,
