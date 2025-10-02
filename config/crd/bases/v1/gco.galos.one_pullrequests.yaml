@@ -142,6 +142,68 @@ spec:
                   - strategy
                   type: object
                 type: array
+              restAPI:
+                description: RestAPI defines configuration for REST API integration
+                properties:
+                  authSecretKey:
+                    description: 'AuthSecretKey is the key in the auth secret (default:
+                      token)'
+                    type: string
+                  authSecretRef:
+                    description: AuthSecretRef references a secret containing authentication
+                      credentials
+                    type: string
+                  body:
+                    description: Body is the request body for POST/PUT/PATCH requests
+                    type: string
+                  expectedStatusCodes:
+                    description: |-
+                      ExpectedStatusCodes defines acceptable HTTP response codes
+                      If empty, defaults to [200, 201, 202, 204]
+                    items:
+                      type: integer
+                    maxItems: 10
+                    minItems: 1
+                    type: array
+                  headers:
+                    additionalProperties:
+                      type: string
+                    description: Headers contains HTTP headers to send with the request
+                    type: object
+                  maxStatusCode:
+                    default: 399
+                    description: |-
+                      MaxStatusCode is the maximum acceptable status code (default: 399)
+                      Responses >= this value will prevent the GitCommit/PullRequest from executing
+                    maximum: 599
+                    minimum: 100
+                    type: integer
+                  method:
+                    default: GET
+                    description: 'Method is the HTTP method to use (default: GET)'
+                    enum:
+                    - GET
+                    - POST
+                    - PUT
+                    - PATCH
+                    - DELETE
+                    - HEAD
+                    - OPTIONS
+                    type: string
+                  timeoutSeconds:
+                    default: 30
+                    description: 'TimeoutSeconds is the request timeout in seconds
+                      (default: 30)'
+                    maximum: 300
+                    minimum: 1
+                    type: integer
+                  url:
+                    description: URL is the REST API endpoint to call
+                    pattern: ^https?://.*
+                    type: string
+                required:
+                - url
+                type: object
               title:
                 minLength: 1
                 type: string
@@ -165,6 +227,38 @@ spec:
                 type: integer
               pullRequestURL:
                 type: string
+              restAPIStatus:
+                description: RestAPIStatus tracks the status of REST API calls
+                properties:
+                  callCount:
+                    description: CallCount is the total number of API calls made
+                    format: int64
+                    type: integer
+                  conditionMet:
+                    description: ConditionMet indicates if the API response met the
+                      conditions for proceeding
+                    type: boolean
+                  lastCallTime:
+                    description: LastCallTime is when the API was last called
+                    format: date-time
+                    type: string
+                  lastError:
+                    description: LastError is the error message from the last failed
+                      call
+                    type: string
+                  lastResponse:
+                    description: LastResponse is a truncated version of the last response
+                      body (max 1024 chars)
+                    type: string
+                  lastStatusCode:
+                    description: LastStatusCode is the HTTP status code from the last
+                      call
+                    type: integer
+                  successCount:
+                    description: SuccessCount is the number of successful API calls
+                    format: int64
+                    type: integer
+                type: object
             type: object
         type: object
     served: true

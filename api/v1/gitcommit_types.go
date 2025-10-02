@@ -4,6 +4,74 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// RestAPI defines configuration for REST API integration
+type RestAPI struct {
+	// URL is the REST API endpoint to call
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern="^https?://.*"
+	URL string `json:"url"`
+	
+	// Method is the HTTP method to use (default: GET)
+	// +kubebuilder:validation:Enum=GET;POST;PUT;PATCH;DELETE;HEAD;OPTIONS
+	// +kubebuilder:default=GET
+	Method string `json:"method,omitempty"`
+	
+	// Headers contains HTTP headers to send with the request
+	Headers map[string]string `json:"headers,omitempty"`
+	
+	// Body is the request body for POST/PUT/PATCH requests
+	Body string `json:"body,omitempty"`
+	
+	// AuthSecretRef references a secret containing authentication credentials
+	AuthSecretRef string `json:"authSecretRef,omitempty"`
+	
+	// AuthSecretKey is the key in the auth secret (default: token)
+	AuthSecretKey string `json:"authSecretKey,omitempty"`
+	
+	// ExpectedStatusCodes defines acceptable HTTP response codes
+	// If empty, defaults to [200, 201, 202, 204]
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=10
+	ExpectedStatusCodes []int `json:"expectedStatusCodes,omitempty"`
+	
+	// MaxStatusCode is the maximum acceptable status code (default: 399)
+	// Responses >= this value will prevent the GitCommit/PullRequest from executing
+	// +kubebuilder:validation:Minimum=100
+	// +kubebuilder:validation:Maximum=599
+	// +kubebuilder:default=399
+	MaxStatusCode int `json:"maxStatusCode,omitempty"`
+	
+	// TimeoutSeconds is the request timeout in seconds (default: 30)
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=300
+	// +kubebuilder:default=30
+	TimeoutSeconds int `json:"timeoutSeconds,omitempty"`
+}
+
+// RestAPIStatus tracks the status of REST API calls
+type RestAPIStatus struct {
+	// LastCallTime is when the API was last called
+	LastCallTime *metav1.Time `json:"lastCallTime,omitempty"`
+	
+	// LastStatusCode is the HTTP status code from the last call
+	LastStatusCode int `json:"lastStatusCode,omitempty"`
+	
+	// LastResponse is a truncated version of the last response body (max 1024 chars)
+	LastResponse string `json:"lastResponse,omitempty"`
+	
+	// LastError is the error message from the last failed call
+	LastError string `json:"lastError,omitempty"`
+	
+	// CallCount is the total number of API calls made
+	CallCount int64 `json:"callCount,omitempty"`
+	
+	// SuccessCount is the number of successful API calls
+	SuccessCount int64 `json:"successCount,omitempty"`
+	
+	// ConditionMet indicates if the API response met the conditions for proceeding
+	ConditionMet bool `json:"conditionMet,omitempty"`
+}
+
 type GitCommitSpec struct {
 	Repository    string        `json:"repository"`
 	Branch        string        `json:"branch"`
@@ -13,6 +81,7 @@ type GitCommitSpec struct {
 	AuthSecretRef string        `json:"authSecretRef"`
 	AuthSecretKey string        `json:"authSecretKey,omitempty"`
 	Encryption    *Encryption   `json:"encryption,omitempty"`
+	RestAPI       *RestAPI      `json:"restAPI,omitempty"`
 }
 
 type File struct {
@@ -82,10 +151,11 @@ const (
 )
 
 type GitCommitStatus struct {
-	CommitSHA string         `json:"commitSHA,omitempty"`
-	Phase     GitCommitPhase `json:"phase,omitempty"`
-	Message   string         `json:"message,omitempty"`
-	LastSync  *metav1.Time   `json:"lastSync,omitempty"`
+	CommitSHA        string          `json:"commitSHA,omitempty"`
+	Phase            GitCommitPhase  `json:"phase,omitempty"`
+	Message          string          `json:"message,omitempty"`
+	LastSync         *metav1.Time    `json:"lastSync,omitempty"`
+	RestAPIStatus    *RestAPIStatus  `json:"restAPIStatus,omitempty"`
 }
 
 type GitCommitPhase string

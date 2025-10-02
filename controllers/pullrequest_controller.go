@@ -3,6 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +13,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-github/v55/github"
 	"golang.org/x/oauth2"
 	corev1 "k8s.io/api/core/v1"
@@ -55,6 +57,20 @@ func (r *PullRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if pullRequest.Status.Phase == gitv1.PullRequestPhaseCreated {
 		return ctrl.Result{}, nil
+	}
+
+	// Check REST API condition before proceeding
+	shouldProceed, err := r.checkRestAPICondition(ctx, &pullRequest)
+	if err != nil {
+		log.Error(err, "failed to check REST API condition")
+		r.updateStatus(ctx, &pullRequest, gitv1.PullRequestPhaseFailed, fmt.Sprintf("REST API condition check failed: %v", err))
+		return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
+	}
+
+	if !shouldProceed {
+		log.Info("REST API condition not met, skipping pull request creation")
+		r.updateStatus(ctx, &pullRequest, gitv1.PullRequestPhasePending, "REST API condition not met, will retry later")
+		return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
 	}
 
 	if err := r.updateStatus(ctx, &pullRequest, gitv1.PullRequestPhaseRunning, "Processing pull request"); err != nil {
@@ -200,7 +216,7 @@ func (r *PullRequestReconciler) processResourceRef(ctx context.Context, resource
 	return files, nil
 }
 
-func (r *PullRequestReconciler) getAuthFromSecret(ctx context.Context, namespace, secretName, secretKey string) (*http.BasicAuth, string, error) {
+func (r *PullRequestReconciler) getAuthFromSecret(ctx context.Context, namespace, secretName, secretKey string) (*githttp.BasicAuth, string, error) {
 	var secret corev1.Secret
 	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &secret); err != nil {
 		return nil, "", err
@@ -221,7 +237,7 @@ func (r *PullRequestReconciler) getAuthFromSecret(ctx context.Context, namespace
 		username = string(usernameData)
 	}
 
-	auth := &http.BasicAuth{
+	auth := &githttp.BasicAuth{
 		Username: username,
 		Password: string(token),
 	}
@@ -229,7 +245,7 @@ func (r *PullRequestReconciler) getAuthFromSecret(ctx context.Context, namespace
 	return auth, string(token), nil
 }
 
-func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1.PullRequest, auth *http.BasicAuth, token string) (int, string, error) {
+func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1.PullRequest, auth *githttp.BasicAuth, token string) (int, string, error) {
 	tempDir, err := os.MkdirTemp("", "pull-request-")
 	if err != nil {
 		return 0, "", err
@@ -491,6 +507,105 @@ func (r *PullRequestReconciler) resolveRecipients(ctx context.Context, recipient
 	}
 
 	return resolved, nil
+}
+
+func (r *PullRequestReconciler) checkRestAPICondition(ctx context.Context, pr *gitv1.PullRequest) (bool, error) {
+	log := log.FromContext(ctx)
+	
+	if pr.Spec.RestAPI == nil {
+		// No REST API condition specified, proceed with git operation
+		return true, nil
+	}
+
+	restAPI := pr.Spec.RestAPI
+	log.Info("Checking REST API condition", "url", restAPI.URL, "method", restAPI.Method)
+
+	// Create HTTP client with timeout
+	timeout := time.Duration(restAPI.TimeoutSeconds) * time.Second
+	if timeout == 0 {
+		timeout = 30 * time.Second // default timeout
+	}
+	client := &http.Client{Timeout: timeout}
+
+	// Create request
+	method := restAPI.Method
+	if method == "" {
+		method = "GET"
+	}
+	req, err := http.NewRequestWithContext(ctx, method, restAPI.URL, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	// Add headers
+	for name, value := range restAPI.Headers {
+		req.Header.Set(name, value)
+	}
+
+	// Add authentication if specified
+	if restAPI.AuthSecretRef != "" {
+		token, err := r.getTokenFromSecret(ctx, pr.Namespace, restAPI.AuthSecretRef, restAPI.AuthSecretKey)
+		if err != nil {
+			return false, fmt.Errorf("failed to get auth token: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	// Make the request
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("HTTP request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response for logging
+	body, _ := io.ReadAll(resp.Body)
+	log.Info("REST API response", "status", resp.StatusCode, "body", string(body))
+
+	// Update status
+	if pr.Status.RestAPIStatus == nil {
+		pr.Status.RestAPIStatus = &gitv1.RestAPIStatus{}
+	}
+	now := metav1.Now()
+	pr.Status.RestAPIStatus.LastCallTime = &now
+	pr.Status.RestAPIStatus.LastStatusCode = resp.StatusCode
+	pr.Status.RestAPIStatus.LastResponse = string(body)
+
+	// Check if response meets the condition
+	maxStatusCode := restAPI.MaxStatusCode
+	if maxStatusCode == 0 {
+		maxStatusCode = 399 // default
+	}
+	shouldProceed := resp.StatusCode <= maxStatusCode
+	pr.Status.RestAPIStatus.ConditionMet = shouldProceed
+
+	// Update the PullRequest status
+	if err := r.Status().Update(ctx, pr); err != nil {
+		log.Error(err, "Failed to update PullRequest status after REST API call")
+		// Continue despite status update failure
+	}
+
+	log.Info("REST API condition result", "conditionMet", shouldProceed, "statusCode", resp.StatusCode, "maxStatusCode", maxStatusCode)
+	return shouldProceed, nil
+}
+
+func (r *PullRequestReconciler) getTokenFromSecret(ctx context.Context, namespace, secretName, secretKey string) (string, error) {
+	var secret corev1.Secret
+	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &secret); err != nil {
+		return "", err
+	}
+
+	key := secretKey
+	if key == "" {
+		key = "token"
+	}
+
+	token, exists := secret.Data[key]
+	if !exists {
+		return "", fmt.Errorf("key %s not found in secret %s", key, secretName)
+	}
+
+	return string(token), nil
 }
 
 func (r *PullRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {

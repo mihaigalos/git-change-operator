@@ -17,6 +17,7 @@ type PullRequestSpec struct {
 	AuthSecretRef string        `json:"authSecretRef"`
 	AuthSecretKey string        `json:"authSecretKey,omitempty"`
 	Encryption    *Encryption   `json:"encryption,omitempty"`
+	RestAPI       *RestAPI      `json:"restAPI,omitempty"`
 }
 
 type PullRequestStatus struct {
@@ -25,6 +26,7 @@ type PullRequestStatus struct {
 	Phase             PullRequestPhase `json:"phase,omitempty"`
 	Message           string           `json:"message,omitempty"`
 	LastSync          *metav1.Time     `json:"lastSync,omitempty"`
+	RestAPIStatus     *RestAPIStatus   `json:"restAPIStatus,omitempty"`
 }
 
 type PullRequestPhase string

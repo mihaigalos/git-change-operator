@@ -123,3 +123,8 @@ The tests are designed to run in CI environments without requiring:
 - Network connectivity
 
 All external dependencies are mocked or use fake implementations.
+
+## TODO
+curl -s "https://cloud.galos.one/prometheus/api/v1/query?query=scalar(max(max_over_time(smartmeter%7Bkind%3D%22total_power%22%7D%5B1d%5D))-max(max_over_time(smartmeter%7Bkind%3D%22total_power%22%7D%5B1d%5D%20offset%201d)))"
+
+{"status":"success","data":{"resultType":"scalar","result":[1759433836.397,"24.450000000004366"]}}

@@ -1,9 +1,12 @@
 package controllers
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +15,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,6 +62,24 @@ func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
+	// Check REST API condition if configured
+	if gitCommit.Spec.RestAPI != nil {
+		conditionMet, err := r.checkRestAPICondition(ctx, &gitCommit)
+		if err != nil {
+			log.Error(err, "failed to check REST API condition")
+			r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhaseFailed, fmt.Sprintf("REST API check failed: %v", err))
+			return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
+		}
+		
+		if !conditionMet {
+			log.Info("REST API condition not met, skipping git commit")
+			r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhasePending, "REST API condition not met, waiting...")
+			return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
+		}
+		
+		log.Info("REST API condition met, proceeding with git commit")
+	}
+
 	auth, err := r.getAuthFromSecret(ctx, gitCommit.Namespace, gitCommit.Spec.AuthSecretRef, gitCommit.Spec.AuthSecretKey)
 	if err != nil {
 		log.Error(err, "failed to get authentication")
@@ -82,7 +103,7 @@ func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{}, nil
 }
 
-func (r *GitCommitReconciler) getAuthFromSecret(ctx context.Context, namespace, secretName, secretKey string) (*http.BasicAuth, error) {
+func (r *GitCommitReconciler) getAuthFromSecret(ctx context.Context, namespace, secretName, secretKey string) (*githttp.BasicAuth, error) {
 	var secret corev1.Secret
 	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &secret); err != nil {
 		return nil, err
@@ -103,13 +124,13 @@ func (r *GitCommitReconciler) getAuthFromSecret(ctx context.Context, namespace, 
 		username = string(usernameData)
 	}
 
-	return &http.BasicAuth{
+	return &githttp.BasicAuth{
 		Username: username,
 		Password: string(token),
 	}, nil
 }
 
-func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *gitv1.GitCommit, auth *http.BasicAuth) (string, error) {
+func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *gitv1.GitCommit, auth *githttp.BasicAuth) (string, error) {
 	tempDir, err := ioutil.TempDir("", "git-commit-")
 	if err != nil {
 		return "", err
@@ -426,6 +447,144 @@ func (r *GitCommitReconciler) resolveRecipients(ctx context.Context, recipients 
 	}
 
 	return resolved, nil
+}
+
+// checkRestAPICondition checks if the REST API condition is met for proceeding with git operations
+func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitCommit *gitv1.GitCommit) (bool, error) {
+	log := log.FromContext(ctx)
+	restAPI := gitCommit.Spec.RestAPI
+	
+	// Set defaults
+	method := "GET"
+	if restAPI.Method != "" {
+		method = restAPI.Method
+	}
+	
+	timeoutSeconds := 30
+	if restAPI.TimeoutSeconds > 0 {
+		timeoutSeconds = restAPI.TimeoutSeconds
+	}
+	
+	maxStatusCode := 399
+	if restAPI.MaxStatusCode > 0 {
+		maxStatusCode = restAPI.MaxStatusCode
+	}
+	
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: time.Duration(timeoutSeconds) * time.Second,
+	}
+	
+	// Create request
+	var body io.Reader
+	if restAPI.Body != "" {
+		body = bytes.NewReader([]byte(restAPI.Body))
+	}
+	
+	req, err := http.NewRequestWithContext(ctx, method, restAPI.URL, body)
+	if err != nil {
+		return false, fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+	
+	// Add headers
+	for key, value := range restAPI.Headers {
+		req.Header.Set(key, value)
+	}
+	
+	// Add authentication if configured
+	if restAPI.AuthSecretRef != "" {
+		token, err := r.getTokenFromSecret(ctx, gitCommit.Namespace, restAPI.AuthSecretRef, restAPI.AuthSecretKey)
+		if err != nil {
+			return false, fmt.Errorf("failed to get auth token: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	
+	// Make the request
+	startTime := time.Now()
+	resp, err := client.Do(req)
+	duration := time.Since(startTime)
+	
+	// Update status regardless of success/failure
+	if gitCommit.Status.RestAPIStatus == nil {
+		gitCommit.Status.RestAPIStatus = &gitv1.RestAPIStatus{}
+	}
+	
+	now := metav1.Now()
+	gitCommit.Status.RestAPIStatus.LastCallTime = &now
+	gitCommit.Status.RestAPIStatus.CallCount++
+	
+	if err != nil {
+		gitCommit.Status.RestAPIStatus.LastError = err.Error()
+		log.Error(err, "REST API call failed", "url", restAPI.URL, "duration", duration)
+		return false, fmt.Errorf("HTTP request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	gitCommit.Status.RestAPIStatus.LastStatusCode = resp.StatusCode
+	
+	// Read response body (truncated to 1024 chars)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	if err == nil {
+		gitCommit.Status.RestAPIStatus.LastResponse = string(respBody)
+	}
+	
+	// Check if status code meets conditions
+	conditionMet := false
+	
+	// First check explicit expected status codes if provided
+	if len(restAPI.ExpectedStatusCodes) > 0 {
+		for _, expected := range restAPI.ExpectedStatusCodes {
+			if resp.StatusCode == expected {
+				conditionMet = true
+				break
+			}
+		}
+	} else {
+		// Use maxStatusCode threshold (default behavior)
+		conditionMet = resp.StatusCode < maxStatusCode
+	}
+	
+	gitCommit.Status.RestAPIStatus.ConditionMet = conditionMet
+	gitCommit.Status.RestAPIStatus.LastError = ""
+	
+	if conditionMet {
+		gitCommit.Status.RestAPIStatus.SuccessCount++
+	}
+	
+	// Update the GitCommit status
+	if err := r.Status().Update(ctx, gitCommit); err != nil {
+		log.Error(err, "failed to update GitCommit status")
+	}
+	
+	log.Info("REST API call completed", 
+		"url", restAPI.URL, 
+		"method", method,
+		"statusCode", resp.StatusCode,
+		"conditionMet", conditionMet,
+		"duration", duration)
+	
+	return conditionMet, nil
+}
+
+// getTokenFromSecret retrieves a token from a Kubernetes secret for REST API authentication
+func (r *GitCommitReconciler) getTokenFromSecret(ctx context.Context, namespace, secretName, secretKey string) (string, error) {
+	var secret corev1.Secret
+	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, &secret); err != nil {
+		return "", err
+	}
+	
+	key := secretKey
+	if key == "" {
+		key = "token"
+	}
+	
+	token, exists := secret.Data[key]
+	if !exists {
+		return "", fmt.Errorf("key %s not found in secret %s", key, secretName)
+	}
+	
+	return string(token), nil
 }
 
 func (r *GitCommitReconciler) SetupWithManager(mgr ctrl.Manager) error {

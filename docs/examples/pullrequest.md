@@ -122,7 +122,7 @@ spec:
           timestamp: "2023-10-01T10:00:00Z"
           cluster: "production-east-1"
           namespace: "production"
-          operator_version: "v1.0.0"
+          operator_version: "v1.1.0"
           
   resourceReferences:
     # Export application configuration
