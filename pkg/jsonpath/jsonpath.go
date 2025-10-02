@@ -1,5 +1,4 @@
 package jsonpath
-package jsonpath
 
 import (
 	"encoding/json"
@@ -19,12 +18,12 @@ func ExtractValue(jsonData []byte, path string) (string, error) {
 	if err := json.Unmarshal(jsonData, &data); err != nil {
 		return "", fmt.Errorf("failed to parse JSON: %w", err)
 	}
-	
+
 	value, err := extractFromPath(data, path)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Convert value to string
 	return valueToString(value), nil
 }
@@ -35,7 +34,7 @@ func ExtractMultipleValues(jsonData []byte, paths []string) ([]string, error) {
 	if err := json.Unmarshal(jsonData, &data); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
-	
+
 	var results []string
 	for _, path := range paths {
 		value, err := extractFromPath(data, path)
@@ -44,7 +43,7 @@ func ExtractMultipleValues(jsonData []byte, paths []string) ([]string, error) {
 		}
 		results = append(results, valueToString(value))
 	}
-	
+
 	return results, nil
 }
 
@@ -53,11 +52,11 @@ func extractFromPath(data interface{}, path string) (interface{}, error) {
 	if path == "" {
 		return data, nil
 	}
-	
+
 	// Split path into segments
 	segments := splitPath(path)
 	current := data
-	
+
 	for _, segment := range segments {
 		var err error
 		current, err = navigateSegment(current, segment)
@@ -65,7 +64,7 @@ func extractFromPath(data interface{}, path string) (interface{}, error) {
 			return nil, err
 		}
 	}
-	
+
 	return current, nil
 }
 
@@ -74,7 +73,7 @@ func splitPath(path string) []string {
 	var segments []string
 	var currentSegment strings.Builder
 	inBracket := false
-	
+
 	for i, char := range path {
 		switch char {
 		case '.':
@@ -105,11 +104,11 @@ func splitPath(path string) []string {
 			currentSegment.WriteRune(char)
 		}
 	}
-	
+
 	if currentSegment.Len() > 0 {
 		segments = append(segments, currentSegment.String())
 	}
-	
+
 	return segments
 }
 
@@ -122,7 +121,7 @@ func navigateSegment(current interface{}, segment string) (interface{}, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid array index: %s", indexStr)
 		}
-		
+
 		switch arr := current.(type) {
 		case []interface{}:
 			if index < 0 || index >= len(arr) {
@@ -133,24 +132,24 @@ func navigateSegment(current interface{}, segment string) (interface{}, error) {
 			return nil, fmt.Errorf("cannot index non-array type")
 		}
 	}
-	
+
 	// Handle field access with potential array index like "field[0]"
 	if strings.Contains(segment, "[") {
 		// Split into field name and array index
 		parts := strings.SplitN(segment, "[", 2)
 		fieldName := parts[0]
 		indexPart := "[" + parts[1] // Re-add the bracket
-		
+
 		// First navigate to the field
 		fieldValue, err := navigateField(current, fieldName)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Then handle the array index
 		return navigateSegment(fieldValue, indexPart)
 	}
-	
+
 	// Simple field access
 	return navigateField(current, segment)
 }
