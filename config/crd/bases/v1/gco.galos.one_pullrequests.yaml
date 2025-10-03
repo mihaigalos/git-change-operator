@@ -236,6 +236,10 @@ spec:
               title:
                 minLength: 1
                 type: string
+              ttlMinutes:
+                maximum: 43200
+                minimum: 1
+                type: integer
             required:
             - authSecretRef
             - baseBranch

@@ -62,8 +62,30 @@ func (r *PullRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	if pullRequest.Status.Phase == gitv1.PullRequestPhaseCreated {
+	// Check if the resource has expired due to TTL
+	expired, err := r.checkTTLExpired(ctx, &pullRequest)
+	if err != nil {
+		log.Error(err, "failed to check TTL expiration")
+		return ctrl.Result{}, err
+	}
+	if expired {
+		log.Info("Deleting expired PullRequest resource")
+		if err := r.Delete(ctx, &pullRequest); err != nil {
+			log.Error(err, "failed to delete expired PullRequest")
+			return ctrl.Result{RequeueAfter: time.Minute * 1}, err
+		}
 		return ctrl.Result{}, nil
+	}
+
+	// For created resources, still requeue periodically for TTL checking
+	if pullRequest.Status.Phase == gitv1.PullRequestPhaseCreated {
+		return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
+	}
+
+	// For failed resources, only check TTL - don't retry the operation
+	// But still requeue periodically for TTL checking
+	if pullRequest.Status.Phase == gitv1.PullRequestPhaseFailed {
+		return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
 	// Check REST API condition before proceeding
@@ -749,6 +771,39 @@ func (r *PullRequestReconciler) getTokenFromSecret(ctx context.Context, namespac
 	}
 
 	return string(token), nil
+}
+
+// checkTTLExpired checks if the resource has expired based on TTL configuration
+func (r *PullRequestReconciler) checkTTLExpired(ctx context.Context, pullRequest *gitv1.PullRequest) (bool, error) {
+	log := log.FromContext(ctx)
+
+	// If TTLMinutes is not set, no TTL expiration
+	if pullRequest.Spec.TTLMinutes == nil {
+		return false, nil
+	}
+
+	// Calculate expiration time
+	creationTime := pullRequest.CreationTimestamp.Time
+	ttlDuration := time.Duration(*pullRequest.Spec.TTLMinutes) * time.Minute
+	expirationTime := creationTime.Add(ttlDuration)
+	
+	// Check if expired
+	now := time.Now()
+	if now.After(expirationTime) {
+		log.Info("PullRequest resource has expired due to TTL",
+			"creationTime", creationTime,
+			"ttlMinutes", *pullRequest.Spec.TTLMinutes,
+			"expirationTime", expirationTime,
+			"currentTime", now)
+		return true, nil
+	}
+
+	log.V(1).Info("PullRequest resource TTL check",
+		"creationTime", creationTime,
+		"ttlMinutes", *pullRequest.Spec.TTLMinutes,
+		"expirationTime", expirationTime,
+		"timeToExpiration", expirationTime.Sub(now))
+	return false, nil
 }
 
 func (r *PullRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {

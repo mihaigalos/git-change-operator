@@ -61,8 +61,30 @@ func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	if gitCommit.Status.Phase == gitv1.GitCommitPhaseCommitted {
+	// Check if the resource has expired due to TTL
+	expired, err := r.checkTTLExpired(ctx, &gitCommit)
+	if err != nil {
+		log.Error(err, "failed to check TTL expiration")
+		return ctrl.Result{}, err
+	}
+	if expired {
+		log.Info("Deleting expired GitCommit resource")
+		if err := r.Delete(ctx, &gitCommit); err != nil {
+			log.Error(err, "failed to delete expired GitCommit")
+			return ctrl.Result{RequeueAfter: time.Minute * 1}, err
+		}
 		return ctrl.Result{}, nil
+	}
+
+	// For committed resources, still requeue periodically for TTL checking
+	if gitCommit.Status.Phase == gitv1.GitCommitPhaseCommitted {
+		return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
+	}
+
+	// For failed resources, only check TTL - don't retry the operation
+	// But still requeue periodically for TTL checking
+	if gitCommit.Status.Phase == gitv1.GitCommitPhaseFailed {
+		return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
 	if err := r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhaseRunning, "Processing git commit"); err != nil {
@@ -685,6 +707,39 @@ func (r *GitCommitReconciler) getTokenFromSecret(ctx context.Context, namespace,
 	}
 
 	return string(token), nil
+}
+
+// checkTTLExpired checks if the resource has expired based on TTL configuration
+func (r *GitCommitReconciler) checkTTLExpired(ctx context.Context, gitCommit *gitv1.GitCommit) (bool, error) {
+	log := log.FromContext(ctx)
+
+	// If TTLMinutes is not set, no TTL expiration
+	if gitCommit.Spec.TTLMinutes == nil {
+		return false, nil
+	}
+
+	// Calculate expiration time
+	creationTime := gitCommit.CreationTimestamp.Time
+	ttlDuration := time.Duration(*gitCommit.Spec.TTLMinutes) * time.Minute
+	expirationTime := creationTime.Add(ttlDuration)
+	
+	// Check if expired
+	now := time.Now()
+	if now.After(expirationTime) {
+		log.Info("GitCommit resource has expired due to TTL",
+			"creationTime", creationTime,
+			"ttlMinutes", *gitCommit.Spec.TTLMinutes,
+			"expirationTime", expirationTime,
+			"currentTime", now)
+		return true, nil
+	}
+
+	log.V(1).Info("GitCommit resource TTL check",
+		"creationTime", creationTime,
+		"ttlMinutes", *gitCommit.Spec.TTLMinutes,
+		"expirationTime", expirationTime,
+		"timeToExpiration", expirationTime.Sub(now))
+	return false, nil
 }
 
 func (r *GitCommitReconciler) SetupWithManager(mgr ctrl.Manager) error {

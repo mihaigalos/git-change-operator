@@ -18,6 +18,9 @@ type PullRequestSpec struct {
 	AuthSecretKey string        `json:"authSecretKey,omitempty"`
 	Encryption    *Encryption   `json:"encryption,omitempty"`
 	RestAPI       *RestAPI      `json:"restAPI,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=43200
+	TTLMinutes    *int          `json:"ttlMinutes,omitempty"`
 }
 
 type PullRequestStatus struct {

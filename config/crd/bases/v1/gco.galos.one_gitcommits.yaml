@@ -231,6 +231,10 @@ spec:
                 required:
                 - url
                 type: object
+              ttlMinutes:
+                maximum: 43200
+                minimum: 1
+                type: integer
             required:
             - authSecretRef
             - branch
