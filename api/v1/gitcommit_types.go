@@ -85,9 +85,11 @@ type RestAPIStatus struct {
 	LastError string `json:"lastError,omitempty"`
 
 	// CallCount is the total number of API calls made
+	// +kubebuilder:validation:Type=integer
 	CallCount int64 `json:"callCount,omitempty"`
 
 	// SuccessCount is the number of successful API calls
+	// +kubebuilder:validation:Type=integer
 	SuccessCount int64 `json:"successCount,omitempty"`
 
 	// ConditionMet indicates if the CEL condition expression evaluated to true
