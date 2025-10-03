@@ -786,7 +786,7 @@ func (r *PullRequestReconciler) checkTTLExpired(ctx context.Context, pullRequest
 	creationTime := pullRequest.CreationTimestamp.Time
 	ttlDuration := time.Duration(*pullRequest.Spec.TTLMinutes) * time.Minute
 	expirationTime := creationTime.Add(ttlDuration)
-	
+
 	// Check if expired
 	now := time.Now()
 	if now.After(expirationTime) {

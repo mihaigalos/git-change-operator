@@ -1,0 +1,36 @@
+---
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: test-gitcommit-prometheus
+  namespace: default
+spec:
+  repository: https://github.com/mihaigalos/test.git
+  branch: main
+  commitMessage: "Smart meter power consumption analysis from Prometheus"
+  authSecretRef: test-git-secret
+  authSecretKey: token
+  ttlMinutes: 5  # Keep this test for 5 minutes
+
+  # Query Prometheus for smart meter power consumption data
+  restAPI:
+    url: "https://cloud.galos.one/prometheus/api/v1/query?query=scalar(max(max_over_time(smartmeter%7Bkind%3D%22total_power%22%7D%5B1d%5D))-max(max_over_time(smartmeter%7Bkind%3D%22total_power%22%7D%5B1d%5D%20offset%201d)))"
+    method: "GET"
+    timeoutSeconds: 30
+    maxStatusCode: 299
+
+    # CEL-based response parsing for Prometheus data
+    responseParsing:
+      # Check if we have a successful Prometheus response with scalar result
+      condition: 'response.status == "success" && response.data.resultType == "scalar" && size(response.data.result) == 2'
+
+      # Extract both timestamp and power value as a formatted string
+      dataExpression: '"Timestamp: " + string(response.data.result[0]) + ", Power: " + string(response.data.result[1]) + " kW"'
+
+      # Simple output format using the extracted data
+      outputFormat: '"Smart meter reading: " + data'
+
+  files:
+  - path: monitoring/power-consumption-analysis.txt
+    content: "placeholder"  # Will be replaced by CEL-processed Prometheus data
+    useRestAPIData: true

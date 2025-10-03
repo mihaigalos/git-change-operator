@@ -114,7 +114,7 @@ type GitCommitSpec struct {
 	RestAPI       *RestAPI      `json:"restAPI,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=43200
-	TTLMinutes    *int          `json:"ttlMinutes,omitempty"`
+	TTLMinutes *int `json:"ttlMinutes,omitempty"`
 }
 
 type File struct {

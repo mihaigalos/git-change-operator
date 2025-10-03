@@ -722,7 +722,7 @@ func (r *GitCommitReconciler) checkTTLExpired(ctx context.Context, gitCommit *gi
 	creationTime := gitCommit.CreationTimestamp.Time
 	ttlDuration := time.Duration(*gitCommit.Spec.TTLMinutes) * time.Minute
 	expirationTime := creationTime.Add(ttlDuration)
-	
+
 	// Check if expired
 	now := time.Now()
 	if now.After(expirationTime) {
