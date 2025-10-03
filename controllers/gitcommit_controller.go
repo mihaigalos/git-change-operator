@@ -91,22 +91,22 @@ func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	// Check REST API condition if configured
-	if gitCommit.Spec.RestAPI != nil {
-		conditionMet, err := r.checkRestAPICondition(ctx, &gitCommit)
+	// Check REST API conditions if configured
+	if len(gitCommit.Spec.RestAPIs) > 0 {
+		allConditionsMet, err := r.checkRestAPIConditions(ctx, &gitCommit)
 		if err != nil {
-			log.Error(err, "failed to check REST API condition")
+			log.Error(err, "failed to check REST API conditions")
 			r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhaseFailed, fmt.Sprintf("REST API check failed: %v", err))
 			return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
 		}
 
-		if !conditionMet {
-			log.Info("REST API condition not met, skipping git commit")
-			r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhasePending, "REST API condition not met, waiting...")
+		if !allConditionsMet {
+			log.Info("One or more REST API conditions not met, skipping git commit")
+			r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhasePending, "REST API conditions not met, waiting...")
 			return ctrl.Result{RequeueAfter: time.Minute * 2}, nil
 		}
 
-		log.Info("REST API condition met, proceeding with git commit")
+		log.Info("All REST API conditions met, proceeding with git commit")
 	}
 
 	auth, err := r.getAuthFromSecret(ctx, gitCommit.Namespace, gitCommit.Spec.AuthSecretRef, gitCommit.Spec.AuthSecretKey)
@@ -209,10 +209,9 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 
 		// Determine content source
 		if file.UseRestAPIData {
-			// Use REST API response data
-			if gitCommit.Status.RestAPIStatus != nil && gitCommit.Status.RestAPIStatus.FormattedOutput != "" {
-				content = []byte(gitCommit.Status.RestAPIStatus.FormattedOutput)
-			} else {
+			// Use REST API response data from multiple APIs
+			content = r.buildFileContent(&file, gitCommit.Status.RestAPIStatuses)
+			if len(content) == 0 {
 				return "", fmt.Errorf("file %s requested REST API data but no formatted output available", file.Path)
 			}
 		} else {
@@ -492,10 +491,47 @@ func (r *GitCommitReconciler) resolveRecipients(ctx context.Context, recipients 
 	return resolved, nil
 }
 
-// checkRestAPICondition checks if the REST API condition is met and extracts data for use in commits
-func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitCommit *gitv1.GitCommit) (bool, error) {
+// checkRestAPIConditions checks if all REST API conditions are met and extracts data for use in commits
+func (r *GitCommitReconciler) checkRestAPIConditions(ctx context.Context, gitCommit *gitv1.GitCommit) (bool, error) {
 	log := log.FromContext(ctx)
-	restAPI := gitCommit.Spec.RestAPI
+
+	// Initialize status slice if needed
+	if gitCommit.Status.RestAPIStatuses == nil {
+		gitCommit.Status.RestAPIStatuses = make([]gitv1.RestAPIStatus, len(gitCommit.Spec.RestAPIs))
+	}
+
+	// Ensure we have the right number of status entries
+	if len(gitCommit.Status.RestAPIStatuses) != len(gitCommit.Spec.RestAPIs) {
+		gitCommit.Status.RestAPIStatuses = make([]gitv1.RestAPIStatus, len(gitCommit.Spec.RestAPIs))
+	}
+
+	allConditionsMet := true
+
+	// Process each REST API
+	for i, restAPI := range gitCommit.Spec.RestAPIs {
+		conditionMet, err := r.checkSingleRestAPICondition(ctx, gitCommit, &restAPI, &gitCommit.Status.RestAPIStatuses[i])
+		if err != nil {
+			log.Error(err, "failed to check REST API condition", "name", restAPI.Name, "url", restAPI.URL)
+			return false, err
+		}
+
+		if !conditionMet {
+			allConditionsMet = false
+			log.Info("REST API condition not met", "name", restAPI.Name, "url", restAPI.URL)
+		} else {
+			log.Info("REST API condition met", "name", restAPI.Name, "url", restAPI.URL)
+		}
+	}
+
+	return allConditionsMet, nil
+}
+
+// checkSingleRestAPICondition checks if a single REST API condition is met
+func (r *GitCommitReconciler) checkSingleRestAPICondition(ctx context.Context, gitCommit *gitv1.GitCommit, restAPI *gitv1.RestAPI, status *gitv1.RestAPIStatus) (bool, error) {
+	log := log.FromContext(ctx)
+
+	// Set name in status
+	status.Name = restAPI.Name
 
 	// Set defaults
 	method := "GET"
@@ -543,32 +579,27 @@ func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitComm
 	resp, err := client.Do(req)
 	duration := time.Since(startTime)
 
-	// Initialize status
-	if gitCommit.Status.RestAPIStatus == nil {
-		gitCommit.Status.RestAPIStatus = &gitv1.RestAPIStatus{}
-	}
-
 	now := metav1.Now()
-	gitCommit.Status.RestAPIStatus.LastCallTime = &now
-	gitCommit.Status.RestAPIStatus.CallCount++
+	status.LastCallTime = &now
+	status.CallCount++
 
 	if err != nil {
 		// Record failed request metrics
 		r.metricsCollector.RecordAPIRequest(restAPI.URL, method, "error", duration, 0)
-		gitCommit.Status.RestAPIStatus.LastError = err.Error()
-		log.Error(err, "REST API call failed", "url", restAPI.URL, "duration", duration)
+		status.LastError = err.Error()
+		log.Error(err, "REST API call failed", "name", restAPI.Name, "url", restAPI.URL, "duration", duration)
 		return false, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	gitCommit.Status.RestAPIStatus.LastStatusCode = resp.StatusCode
+	status.LastStatusCode = resp.StatusCode
 
 	// Read full response body for processing
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		// Record metrics for successful HTTP but failed body read
 		r.metricsCollector.RecordAPIRequest(restAPI.URL, method, fmt.Sprintf("%d", resp.StatusCode), duration, 0)
-		gitCommit.Status.RestAPIStatus.LastError = fmt.Sprintf("failed to read response: %v", err)
+		status.LastError = fmt.Sprintf("failed to read response: %v", err)
 		return false, fmt.Errorf("failed to read response body: %w", err)
 	}
 
@@ -577,9 +608,9 @@ func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitComm
 
 	// Store truncated response for status (max 1024 chars)
 	if len(respBody) > 1024 {
-		gitCommit.Status.RestAPIStatus.LastResponse = string(respBody[:1024]) + "... (truncated)"
+		status.LastResponse = string(respBody[:1024]) + "... (truncated)"
 	} else {
-		gitCommit.Status.RestAPIStatus.LastResponse = string(respBody)
+		status.LastResponse = string(respBody)
 	}
 
 	// Check HTTP status code first
@@ -601,9 +632,9 @@ func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitComm
 
 	if !httpConditionMet {
 		r.metricsCollector.RecordConditionCheck("http_status_failed")
-		gitCommit.Status.RestAPIStatus.ConditionMet = false
-		gitCommit.Status.RestAPIStatus.LastError = fmt.Sprintf("HTTP status condition not met: %d", resp.StatusCode)
-		log.Info("REST API HTTP status condition not met", "statusCode", resp.StatusCode)
+		status.ConditionMet = false
+		status.LastError = fmt.Sprintf("HTTP status condition not met: %d", resp.StatusCode)
+		log.Info("REST API HTTP status condition not met", "name", restAPI.Name, "statusCode", resp.StatusCode)
 		return false, nil
 	}
 
@@ -611,26 +642,27 @@ func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitComm
 	conditionMet := true
 	if restAPI.ResponseParsing != nil {
 		var err error
-		conditionMet, err = r.processJSONResponse(ctx, gitCommit, respBody, restAPI.ResponseParsing)
+		conditionMet, err = r.processJSONResponse(ctx, status, respBody, restAPI.ResponseParsing)
 		if err != nil {
 			r.metricsCollector.RecordJSONParsingError("processing_failed")
-			gitCommit.Status.RestAPIStatus.LastError = fmt.Sprintf("JSON processing failed: %v", err)
-			log.Error(err, "Failed to process JSON response")
+			status.LastError = fmt.Sprintf("JSON processing failed: %v", err)
+			log.Error(err, "Failed to process JSON response", "name", restAPI.Name)
 			return false, fmt.Errorf("JSON processing failed: %w", err)
 		}
 	}
 
-	gitCommit.Status.RestAPIStatus.ConditionMet = conditionMet
-	gitCommit.Status.RestAPIStatus.LastError = ""
+	status.ConditionMet = conditionMet
+	status.LastError = ""
 
 	if conditionMet {
-		gitCommit.Status.RestAPIStatus.SuccessCount++
+		status.SuccessCount++
 		r.metricsCollector.RecordConditionCheck("success")
 	} else {
 		r.metricsCollector.RecordConditionCheck("json_condition_failed")
 	}
 
 	log.Info("REST API call completed",
+		"name", restAPI.Name,
 		"url", restAPI.URL,
 		"method", method,
 		"statusCode", resp.StatusCode,
@@ -641,7 +673,7 @@ func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitComm
 }
 
 // processJSONResponse processes the JSON response and extracts data according to the parsing configuration using CEL
-func (r *GitCommitReconciler) processJSONResponse(ctx context.Context, gitCommit *gitv1.GitCommit, respBody []byte, parsing *gitv1.ResponseParsing) (bool, error) {
+func (r *GitCommitReconciler) processJSONResponse(ctx context.Context, status *gitv1.RestAPIStatus, respBody []byte, parsing *gitv1.ResponseParsing) (bool, error) {
 	log := log.FromContext(ctx)
 
 	// Create CEL evaluator
@@ -677,8 +709,8 @@ func (r *GitCommitReconciler) processJSONResponse(ctx context.Context, gitCommit
 		"condition", parsing.Condition)
 
 	// Update status with extracted data
-	gitCommit.Status.RestAPIStatus.ExtractedData = result.ExtractedData
-	gitCommit.Status.RestAPIStatus.FormattedOutput = result.FormattedOutput
+	status.ExtractedData = result.ExtractedData
+	status.FormattedOutput = result.FormattedOutput
 
 	log.Info("Data extracted from JSON response using CEL",
 		"dataExpression", parsing.DataExpression,
@@ -740,6 +772,46 @@ func (r *GitCommitReconciler) checkTTLExpired(ctx context.Context, gitCommit *gi
 		"expirationTime", expirationTime,
 		"timeToExpiration", expirationTime.Sub(now))
 	return false, nil
+}
+
+// buildFileContent builds the content for a file based on REST API data and configuration
+func (r *GitCommitReconciler) buildFileContent(file *gitv1.File, statuses []gitv1.RestAPIStatus) []byte {
+	if len(statuses) == 0 {
+		return nil
+	}
+
+	var results []string
+
+	// If a specific REST API name is specified, only use that one
+	if file.RestAPIName != "" {
+		for _, status := range statuses {
+			if status.Name == file.RestAPIName && status.FormattedOutput != "" {
+				results = append(results, status.FormattedOutput)
+				break
+			}
+		}
+	} else {
+		// Use all successful REST API results
+		for _, status := range statuses {
+			if status.FormattedOutput != "" && status.ConditionMet {
+				results = append(results, status.FormattedOutput)
+			}
+		}
+	}
+
+	if len(results) == 0 {
+		return nil
+	}
+
+	// Get delimiter, default to newline
+	delimiter := file.RestAPIDelimiter
+	if delimiter == "" {
+		delimiter = "\n"
+	}
+
+	// Join results with delimiter
+	combinedContent := strings.Join(results, delimiter)
+	return []byte(combinedContent)
 }
 
 func (r *GitCommitReconciler) SetupWithManager(mgr ctrl.Manager) error {

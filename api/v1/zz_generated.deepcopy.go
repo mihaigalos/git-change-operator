@@ -155,10 +155,12 @@ func (in *GitCommitSpec) DeepCopyInto(out *GitCommitSpec) {
 		*out = new(Encryption)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.RestAPI != nil {
-		in, out := &in.RestAPI, &out.RestAPI
-		*out = new(RestAPI)
-		(*in).DeepCopyInto(*out)
+	if in.RestAPIs != nil {
+		in, out := &in.RestAPIs, &out.RestAPIs
+		*out = make([]RestAPI, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	if in.TTLMinutes != nil {
 		in, out := &in.TTLMinutes, &out.TTLMinutes
@@ -184,10 +186,12 @@ func (in *GitCommitStatus) DeepCopyInto(out *GitCommitStatus) {
 		in, out := &in.LastSync, &out.LastSync
 		*out = (*in).DeepCopy()
 	}
-	if in.RestAPIStatus != nil {
-		in, out := &in.RestAPIStatus, &out.RestAPIStatus
-		*out = new(RestAPIStatus)
-		(*in).DeepCopyInto(*out)
+	if in.RestAPIStatuses != nil {
+		in, out := &in.RestAPIStatuses, &out.RestAPIStatuses
+		*out = make([]RestAPIStatus, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 }
 
@@ -300,10 +304,12 @@ func (in *PullRequestSpec) DeepCopyInto(out *PullRequestSpec) {
 		*out = new(Encryption)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.RestAPI != nil {
-		in, out := &in.RestAPI, &out.RestAPI
-		*out = new(RestAPI)
-		(*in).DeepCopyInto(*out)
+	if in.RestAPIs != nil {
+		in, out := &in.RestAPIs, &out.RestAPIs
+		*out = make([]RestAPI, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	if in.TTLMinutes != nil {
 		in, out := &in.TTLMinutes, &out.TTLMinutes
@@ -329,10 +335,12 @@ func (in *PullRequestStatus) DeepCopyInto(out *PullRequestStatus) {
 		in, out := &in.LastSync, &out.LastSync
 		*out = (*in).DeepCopy()
 	}
-	if in.RestAPIStatus != nil {
-		in, out := &in.RestAPIStatus, &out.RestAPIStatus
-		*out = new(RestAPIStatus)
-		(*in).DeepCopyInto(*out)
+	if in.RestAPIStatuses != nil {
+		in, out := &in.RestAPIStatuses, &out.RestAPIStatuses
+		*out = make([]RestAPIStatus, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 }
 

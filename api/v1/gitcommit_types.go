@@ -6,6 +6,13 @@ import (
 
 // RestAPI defines configuration for REST API integration
 type RestAPI struct {
+	// Name is a unique identifier for this REST API query within the resource
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+	Name string `json:"name"`
+
 	// URL is the REST API endpoint to call
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern="^https?://.*"
@@ -72,6 +79,9 @@ type ResponseParsing struct {
 
 // RestAPIStatus tracks the status of REST API calls
 type RestAPIStatus struct {
+	// Name identifies which REST API this status belongs to
+	Name string `json:"name,omitempty"`
+
 	// LastCallTime is when the API was last called
 	LastCallTime *metav1.Time `json:"lastCallTime,omitempty"`
 
@@ -111,7 +121,7 @@ type GitCommitSpec struct {
 	AuthSecretRef string        `json:"authSecretRef"`
 	AuthSecretKey string        `json:"authSecretKey,omitempty"`
 	Encryption    *Encryption   `json:"encryption,omitempty"`
-	RestAPI       *RestAPI      `json:"restAPI,omitempty"`
+	RestAPIs      []RestAPI     `json:"restAPIs,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=43200
 	TTLMinutes *int `json:"ttlMinutes,omitempty"`
@@ -124,6 +134,18 @@ type File struct {
 	// UseRestAPIData indicates this file content should be the formatted REST API response
 	// When true, Content is ignored and the file will contain the API response data
 	UseRestAPIData bool `json:"useRestAPIData,omitempty"`
+
+	// RestAPIName specifies which REST API result to use (by name)
+	// If empty and UseRestAPIData is true, all REST API results will be combined
+	// +kubebuilder:validation:MaxLength=63
+	// +kubebuilder:validation:Pattern="^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+	RestAPIName string `json:"restAPIName,omitempty"`
+
+	// RestAPIDelimiter specifies how to join multiple REST API results when RestAPIName is empty
+	// Default: "\n" (newline). Common options: ", ", " | ", "\n---\n", etc.
+	// Only used when UseRestAPIData is true and RestAPIName is empty (combining all APIs)
+	// +kubebuilder:default="\n"
+	RestAPIDelimiter string `json:"restAPIDelimiter,omitempty"`
 }
 
 type ResourceRef struct {
@@ -188,11 +210,11 @@ const (
 )
 
 type GitCommitStatus struct {
-	CommitSHA     string         `json:"commitSHA,omitempty"`
-	Phase         GitCommitPhase `json:"phase,omitempty"`
-	Message       string         `json:"message,omitempty"`
-	LastSync      *metav1.Time   `json:"lastSync,omitempty"`
-	RestAPIStatus *RestAPIStatus `json:"restAPIStatus,omitempty"`
+	CommitSHA       string          `json:"commitSHA,omitempty"`
+	Phase           GitCommitPhase  `json:"phase,omitempty"`
+	Message         string          `json:"message,omitempty"`
+	LastSync        *metav1.Time    `json:"lastSync,omitempty"`
+	RestAPIStatuses []RestAPIStatus `json:"restAPIStatuses,omitempty"`
 }
 
 type GitCommitPhase string

@@ -17,7 +17,7 @@ type PullRequestSpec struct {
 	AuthSecretRef string        `json:"authSecretRef"`
 	AuthSecretKey string        `json:"authSecretKey,omitempty"`
 	Encryption    *Encryption   `json:"encryption,omitempty"`
-	RestAPI       *RestAPI      `json:"restAPI,omitempty"`
+	RestAPIs      []RestAPI     `json:"restAPIs,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=43200
 	TTLMinutes *int `json:"ttlMinutes,omitempty"`
@@ -29,7 +29,7 @@ type PullRequestStatus struct {
 	Phase             PullRequestPhase `json:"phase,omitempty"`
 	Message           string           `json:"message,omitempty"`
 	LastSync          *metav1.Time     `json:"lastSync,omitempty"`
-	RestAPIStatus     *RestAPIStatus   `json:"restAPIStatus,omitempty"`
+	RestAPIStatuses   []RestAPIStatus  `json:"restAPIStatuses,omitempty"`
 }
 
 type PullRequestPhase string
