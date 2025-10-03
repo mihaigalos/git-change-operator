@@ -18,6 +18,16 @@ spec:
   commitMessage: "Update configuration files"
   authSecretRef: github-auth
   authSecretKey: token
+  # Optional: REST API integration with CEL-based parsing
+  restAPI:
+    url: "https://api.example.com/status"
+    method: "GET"
+    timeoutSeconds: 30
+    responseParsing:
+      condition: 'has(status) && status == "ok"'
+      dataExpression: 'version + "," + string(timestamp)'
+      outputFormat: 'string(now) + " - API Version: " + version + " (Timestamp: " + string(timestamp) + ")"
+
   files:
   - path: config/app.yaml
     content: |
@@ -27,8 +37,18 @@ spec:
         name: app-config
       data:
         setting: value
+        # CEL-extracted API data can be used here when useRestAPIData: true is specified
+  
+  - path: status/api-status.txt
+    useRestAPIData: true  # This file will contain CEL-processed API response data
+  
   - path: README.md
     content: |
       # Updated README
       
       This file was updated by the git-change-operator.
+      
+      ## Features
+      - REST API integration with CEL (Common Expression Language) support
+      - Dynamic content generation from API responses
+      - Conditional processing based on API status

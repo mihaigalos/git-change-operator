@@ -244,7 +244,7 @@ scrape_configs:
 
 1. **No metrics visible**: Ensure the metrics port is accessible and not blocked by network policies
 2. **High error rates**: Check API endpoint configuration and authentication
-3. **JSON parsing errors**: Verify JSONPath expressions and API response format
+3. **JSON parsing errors**: Verify CEL expressions and API response format
 4. **Slow responses**: Check API endpoint performance and timeout configuration
 
 ### Debug Queries

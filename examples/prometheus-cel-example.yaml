@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-auth
+  namespace: default
+type: Opaque
+data:
+  token: <base64-encoded-token>
+---
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: prometheus-cel-example
+  namespace: default
+spec:
+  repository: https://github.com/owner/metrics-repo.git
+  branch: main
+  commitMessage: "Update metrics data using CEL expressions"
+  authSecretRef: prometheus-auth
+  authSecretKey: token
+  
+  # REST API configuration with CEL-based response parsing
+  restAPI:
+    url: "https://prometheus.example.com/api/v1/query?query=up"
+    method: "GET"
+    timeoutSeconds: 30
+    headers:
+      Content-Type: "application/json"
+    
+    # CEL-based response parsing configuration
+    responseParsing:
+      # Condition: Only proceed if status is success and we have results
+      condition: 'has(status) && status == "success" && has(data.result) && size(data.result) > 0'
+      
+      # Data expression: Extract first metric value and timestamp
+      dataExpression: 'string(data.result[0].value[1]) + "," + string(data.result[0].value[0])'
+      
+      # Output format: Formatted with labels and timestamp
+      outputFormat: |
+        "Metric: " + data.result[0].metric.job + 
+        " Instance: " + data.result[0].metric.instance + 
+        " Value: " + string(data.result[0].value[1]) + 
+        " Timestamp: " + string(now)
+
+  files:
+  - path: metrics/prometheus-data.txt
+    useRestAPIData: true
+    # Content will be: "Metric: prometheus Instance: localhost:9090 Value: 1 Timestamp: 2025-10-03T19:29:16Z"
+  
+  - path: data/raw-metrics.csv
+    content: |
+      # Raw metrics data extracted via CEL
+      # Format: value,timestamp
+      # Generated at: {{ .Timestamp }}
+    useRestAPIData: true
+    # CEL extracted data will be appended: "1,1696356556.397"
+
+---
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: complex-cel-example
+  namespace: default
+spec:
+  repository: https://github.com/owner/metrics-repo.git
+  branch: feature/complex-metrics
+  commitMessage: "Advanced CEL processing for multiple metrics"
+  authSecretRef: prometheus-auth
+  authSecretKey: token
+  
+  restAPI:
+    url: "https://prometheus.example.com/api/v1/query?query=node_memory_MemTotal_bytes"
+    method: "GET"
+    timeoutSeconds: 30
+    
+    responseParsing:
+      # Complex condition: Check multiple fields and validate data
+      condition: |
+        has(status) && status == "success" && 
+        has(data.result) && size(data.result) > 0 &&
+        has(data.result[0].value) && size(data.result[0].value) == 2
+      
+      # Complex data expression: Process multiple results with calculations
+      dataExpression: |
+        size(data.result) > 1 ? 
+          string(double(data.result[0].value[1]) + double(data.result[1].value[1])) :
+          string(data.result[0].value[1])
+      
+      # Advanced output format: JSON-like structure
+      outputFormat: |
+        "{\"timestamp\":\"" + string(now) + 
+        "\",\"metric\":\"" + data.result[0].metric.__name__ + 
+        "\",\"instance\":\"" + data.result[0].metric.instance + 
+        "\",\"value\":" + string(data.result[0].value[1]) + 
+        ",\"unit\":\"bytes\"}"
+
+  files:
+  - path: metrics/memory-metrics.json
+    useRestAPIData: true

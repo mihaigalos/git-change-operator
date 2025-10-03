@@ -51,23 +51,23 @@ type RestAPI struct {
 	ResponseParsing *ResponseParsing `json:"responseParsing,omitempty"`
 }
 
-// ResponseParsing defines how to parse JSON responses and extract data
+// ResponseParsing defines how to parse JSON responses using CEL expressions
 type ResponseParsing struct {
-	// ConditionField is the JSON path to check for proceeding (e.g., "status")
-	// The operation will only proceed if this field equals ConditionValue
-	ConditionField string `json:"conditionField,omitempty"`
+	// Condition is a CEL expression that must evaluate to true for the operation to proceed
+	// The JSON response is available as 'response' variable
+	// Example: "response.status == 'success' && size(response.data.result) >= 2"
+	Condition string `json:"condition,omitempty"`
 
-	// ConditionValue is the expected value for the condition field (e.g., "success")
-	ConditionValue string `json:"conditionValue,omitempty"`
+	// DataExpression is a CEL expression that extracts and transforms data from the response
+	// Should return a map with extracted values or a formatted string
+	// Example: "{'timestamp': string(response.data.result[0]), 'value': string(response.data.result[1])}"
+	DataExpression string `json:"dataExpression,omitempty"`
 
-	// DataFields are JSON paths to extract data from the response (e.g., ["data.result[0]", "data.result[1]"])
-	DataFields []string `json:"dataFields,omitempty"`
-
-	// IncludeTimestamp adds an ISO 8601 timestamp as the first field in the output
-	IncludeTimestamp bool `json:"includeTimestamp,omitempty"`
-
-	// Separator is used to join the extracted data fields (default: ", ")
-	Separator string `json:"separator,omitempty"`
+	// OutputFormat is a CEL expression that formats the final output string
+	// The result of DataExpression is available as 'data' variable, current time as 'now'
+	// Example: "string(int(now)) + ',' + data.timestamp + ',' + data.value"
+	// If empty and DataExpression returns a string, that string is used directly
+	OutputFormat string `json:"outputFormat,omitempty"`
 }
 
 // RestAPIStatus tracks the status of REST API calls
@@ -90,13 +90,13 @@ type RestAPIStatus struct {
 	// SuccessCount is the number of successful API calls
 	SuccessCount int64 `json:"successCount,omitempty"`
 
-	// ConditionMet indicates if the API response met the conditions for proceeding
+	// ConditionMet indicates if the CEL condition expression evaluated to true
 	ConditionMet bool `json:"conditionMet,omitempty"`
 
-	// ExtractedData contains the data extracted from the last successful API response
-	ExtractedData []string `json:"extractedData,omitempty"`
+	// ExtractedData contains the JSON representation of data extracted by the CEL DataExpression
+	ExtractedData string `json:"extractedData,omitempty"`
 
-	// FormattedOutput contains the final formatted string that will be used in commit content
+	// FormattedOutput contains the final formatted string produced by the CEL OutputFormat expression
 	FormattedOutput string `json:"formattedOutput,omitempty"`
 }
 

@@ -197,28 +197,24 @@ spec:
                     description: ResponseParsing configures how to parse and use the
                       JSON response
                     properties:
-                      conditionField:
+                      condition:
                         description: |-
-                          ConditionField is the JSON path to check for proceeding (e.g., "status")
-                          The operation will only proceed if this field equals ConditionValue
+                          Condition is a CEL expression that must evaluate to true for the operation to proceed
+                          The JSON response is available as 'response' variable
+                          Example: "response.status == 'success' && size(response.data.result) >= 2"
                         type: string
-                      conditionValue:
-                        description: ConditionValue is the expected value for the
-                          condition field (e.g., "success")
+                      dataExpression:
+                        description: |-
+                          DataExpression is a CEL expression that extracts and transforms data from the response
+                          Should return a map with extracted values or a formatted string
+                          Example: "{'timestamp': string(response.data.result[0]), 'value': string(response.data.result[1])}"
                         type: string
-                      dataFields:
-                        description: DataFields are JSON paths to extract data from
-                          the response (e.g., ["data.result[0]", "data.result[1]"])
-                        items:
-                          type: string
-                        type: array
-                      includeTimestamp:
-                        description: IncludeTimestamp adds an ISO 8601 timestamp as
-                          the first field in the output
-                        type: boolean
-                      separator:
-                        description: 'Separator is used to join the extracted data
-                          fields (default: ", ")'
+                      outputFormat:
+                        description: |-
+                          OutputFormat is a CEL expression that formats the final output string
+                          The result of DataExpression is available as 'data' variable, current time as 'now'
+                          Example: "string(int(now)) + ',' + data.timestamp + ',' + data.value"
+                          If empty and DataExpression returns a string, that string is used directly
                         type: string
                     type: object
                   timeoutSeconds:
@@ -260,18 +256,16 @@ spec:
                     format: int64
                     type: integer
                   conditionMet:
-                    description: ConditionMet indicates if the API response met the
-                      conditions for proceeding
+                    description: ConditionMet indicates if the CEL condition expression
+                      evaluated to true
                     type: boolean
                   extractedData:
-                    description: ExtractedData contains the data extracted from the
-                      last successful API response
-                    items:
-                      type: string
-                    type: array
+                    description: ExtractedData contains the JSON representation of
+                      data extracted by the CEL DataExpression
+                    type: string
                   formattedOutput:
                     description: FormattedOutput contains the final formatted string
-                      that will be used in commit content
+                      produced by the CEL OutputFormat expression
                     type: string
                   lastCallTime:
                     description: LastCallTime is when the API was last called

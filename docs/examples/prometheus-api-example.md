@@ -41,22 +41,16 @@ spec:
     method: "GET"
     timeoutSeconds: 30
     
-    # JSON response parsing configuration
+    # JSON response parsing configuration using CEL (Common Expression Language)
     responseParsing:
       # Only proceed if status is "success"
-      conditionField: "status"
-      conditionValue: "success"
+      condition: 'has(status) && status == "success"'
       
-      # Extract both values from the result array
-      dataFields:
-        - "data.result[0]"  # First value: 1759433836.397
-        - "data.result[1]"  # Second value: 24.450000000004366
+      # Extract both values from the result array and join them
+      dataExpression: 'string(data.result[0]) + "," + string(data.result[1])'
       
-      # Don't include timestamp yet
-      includeTimestamp: false
-      
-      # Use comma-space separator
-      separator: ", "
+      # Format output with comma-space separator
+      outputFormat: 'string(data.result[0]) + ", " + string(data.result[1])'
   
   files:
     - path: "metrics/power-consumption.txt"
@@ -88,13 +82,10 @@ spec:
     method: "GET"
     
     responseParsing:
-      conditionField: "status"
-      conditionValue: "success"
-      dataFields:
-        - "data.result[0]"
-        - "data.result[1]"
-      includeTimestamp: true  # Adds ISO 8601 timestamp as first field
-      separator: ", "
+      condition: 'has(status) && status == "success"'
+      dataExpression: 'string(data.result[0]) + "," + string(data.result[1])'
+      # Format output with timestamp prefix - CEL includes timestamp automatically when specified
+      outputFormat: 'string(now) + ", " + string(data.result[0]) + ", " + string(data.result[1])'
   
   files:
     - path: "metrics/power-consumption-timestamped.txt" 
@@ -121,13 +112,9 @@ spec:
     method: "GET"
     
     responseParsing:
-      conditionField: "status"
-      conditionValue: "success"
-      dataFields:
-        - "data.result[0]"
-        - "data.result[1]"
-      includeTimestamp: true
-      separator: ", "
+      condition: 'has(status) && status == "success"'
+      dataExpression: 'string(data.result[0]) + "," + string(data.result[1])'
+      outputFormat: 'string(now) + ", " + string(data.result[0]) + ", " + string(data.result[1])'
   
   files:
     # CSV format with timestamp
@@ -188,9 +175,9 @@ kubectl get gitcommit prometheus-data-commit -o jsonpath='{.status.restAPIStatus
 kubectl get gitcommit prometheus-data-commit -o jsonpath='{.status.restAPIStatus.formattedOutput}'
 ```
 
-## JSON Path Examples
+## CEL Expression Examples
 
-The new `responseParsing.dataFields` supports complex JSON paths:
+The new CEL-based response parsing supports powerful expressions:
 
 ```yaml
 # Your response structure
@@ -202,11 +189,19 @@ The new `responseParsing.dataFields` supports complex JSON paths:
 #   }
 # }
 
-dataFields:
-  - "status"              # "success"
-  - "data.resultType"     # "scalar"  
-  - "data.result[0]"      # "1759433836.397"
-  - "data.result[1]"      # "24.450000000004366"
+# CEL Condition Examples:
+condition: 'has(status) && status == "success"'
+condition: 'has(data) && has(data.result) && size(data.result) >= 2'
+
+# CEL Data Expression Examples:
+dataExpression: 'status'                    # "success"
+dataExpression: 'data.resultType'           # "scalar"  
+dataExpression: 'string(data.result[0])'    # "1759433836.397"
+dataExpression: 'string(data.result[0]) + "," + string(data.result[1])'  # Combined values
+
+# CEL Output Format Examples:
+outputFormat: 'string(data.result[0]) + ", " + string(data.result[1])'
+outputFormat: 'string(now) + ": " + data.resultType + " = " + string(data.result[0])'
 ```
 
 ## Error Handling

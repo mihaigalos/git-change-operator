@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/yaml"
 
 	gitv1 "github.com/mihaigalos/git-change-operator/api/v1"
+	"github.com/mihaigalos/git-change-operator/pkg/cel"
 	"github.com/mihaigalos/git-change-operator/pkg/encryption"
-	"github.com/mihaigalos/git-change-operator/pkg/jsonpath"
 )
 
 type GitCommitReconciler struct {
@@ -618,65 +618,51 @@ func (r *GitCommitReconciler) checkRestAPICondition(ctx context.Context, gitComm
 	return conditionMet, nil
 }
 
-// processJSONResponse processes the JSON response and extracts data according to the parsing configuration
+// processJSONResponse processes the JSON response and extracts data according to the parsing configuration using CEL
 func (r *GitCommitReconciler) processJSONResponse(ctx context.Context, gitCommit *gitv1.GitCommit, respBody []byte, parsing *gitv1.ResponseParsing) (bool, error) {
 	log := log.FromContext(ctx)
 
-	// Check condition field if specified
-	if parsing.ConditionField != "" && parsing.ConditionValue != "" {
-		conditionValue, err := jsonpath.ExtractValue(respBody, parsing.ConditionField)
-		if err != nil {
-			r.metricsCollector.RecordJSONParsingError("condition_field_extraction_failed")
-			return false, fmt.Errorf("failed to extract condition field %s: %w", parsing.ConditionField, err)
-		}
-
-		if conditionValue != parsing.ConditionValue {
-			log.Info("JSON condition not met",
-				"field", parsing.ConditionField,
-				"expected", parsing.ConditionValue,
-				"actual", conditionValue)
-			return false, nil
-		}
-
-		log.Info("JSON condition met",
-			"field", parsing.ConditionField,
-			"value", conditionValue)
+	// Create CEL evaluator
+	evaluator, err := cel.NewEvaluator()
+	if err != nil {
+		r.metricsCollector.RecordJSONParsingError("cel_evaluator_creation_failed")
+		return false, fmt.Errorf("failed to create CEL evaluator: %w", err)
 	}
 
-	// Extract data fields if specified
-	if len(parsing.DataFields) > 0 {
-		extractedData, err := jsonpath.ExtractMultipleValues(respBody, parsing.DataFields)
-		if err != nil {
-			r.metricsCollector.RecordJSONParsingError("data_field_extraction_failed")
-			return false, fmt.Errorf("failed to extract data fields: %w", err)
-		}
-
-		gitCommit.Status.RestAPIStatus.ExtractedData = extractedData
-
-		// Create formatted output
-		separator := parsing.Separator
-		if separator == "" {
-			separator = ", "
-		}
-
-		var outputParts []string
-
-		// Add timestamp if requested
-		if parsing.IncludeTimestamp {
-			timestamp := time.Now().Format(time.RFC3339)
-			outputParts = append(outputParts, timestamp)
-		}
-
-		// Add extracted data
-		outputParts = append(outputParts, extractedData...)
-
-		gitCommit.Status.RestAPIStatus.FormattedOutput = strings.Join(outputParts, separator)
-
-		log.Info("Data extracted from JSON response",
-			"dataFields", parsing.DataFields,
-			"extractedData", extractedData,
-			"formattedOutput", gitCommit.Status.RestAPIStatus.FormattedOutput)
+	// Process response using CEL
+	req := cel.ProcessRequest{
+		Condition:      parsing.Condition,
+		DataExpression: parsing.DataExpression,
+		OutputFormat:   parsing.OutputFormat,
+		ResponseData:   respBody,
 	}
+	
+	result, err := evaluator.ProcessResponse(req)
+	if err != nil {
+		r.metricsCollector.RecordJSONParsingError("cel_processing_failed")
+		return false, fmt.Errorf("failed to process JSON response with CEL: %w", err)
+	}
+
+	// Check if condition was met
+	if !result.ConditionMet {
+		log.Info("CEL condition not met",
+			"condition", parsing.Condition,
+			"response", string(respBody))
+		return false, nil
+	}
+
+	log.Info("CEL condition met",
+		"condition", parsing.Condition)
+
+	// Update status with extracted data
+	gitCommit.Status.RestAPIStatus.ExtractedData = result.ExtractedData
+	gitCommit.Status.RestAPIStatus.FormattedOutput = result.FormattedOutput
+
+	log.Info("Data extracted from JSON response using CEL",
+		"dataExpression", parsing.DataExpression,
+		"outputFormat", parsing.OutputFormat,
+		"extractedData", result.ExtractedData,
+		"formattedOutput", result.FormattedOutput)
 
 	return true, nil
 }
