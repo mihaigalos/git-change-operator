@@ -636,7 +636,7 @@ func (r *GitCommitReconciler) processJSONResponse(ctx context.Context, gitCommit
 		OutputFormat:   parsing.OutputFormat,
 		ResponseData:   respBody,
 	}
-	
+
 	result, err := evaluator.ProcessResponse(req)
 	if err != nil {
 		r.metricsCollector.RecordJSONParsingError("cel_processing_failed")

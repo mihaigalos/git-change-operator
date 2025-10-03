@@ -81,7 +81,7 @@ func TestEvaluateDataExpression(t *testing.T) {
 			wantError:  false,
 		},
 		{
-			name:       "extract formatted string directly", 
+			name:       "extract formatted string directly",
 			expression: `string(response.data.result[0]) + "," + string(response.data.result[1])`,
 			expected:   `1.759433836397e+09,24.450000000004366`,
 			wantError:  false,

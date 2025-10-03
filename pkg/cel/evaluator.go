@@ -21,7 +21,7 @@ func NewEvaluator() (*Evaluator, error) {
 		// Standard CEL library functions
 		cel.Lib(&timeLibrary{}),
 		// Declare available variables
-		cel.Variable("response", cel.AnyType),  // The JSON response object
+		cel.Variable("response", cel.AnyType), // The JSON response object
 		cel.Variable("data", cel.AnyType),     // Extracted data from DataExpression
 		cel.Variable("now", cel.IntType),      // Current Unix timestamp
 	)
@@ -111,7 +111,7 @@ func (e *Evaluator) EvaluateDataExpression(expression string, responseData []byt
 
 	// Convert CEL result to a Go value we can work with
 	resultValue := convertCELValue(result)
-	
+
 	if str, ok := resultValue.(string); ok {
 		// If result is already a string, return it directly
 		return str, nil
@@ -269,7 +269,7 @@ func convertCELValue(val ref.Val) interface{} {
 	default:
 		// For complex types (maps, lists), convert recursively
 		nativeVal := val.Value()
-		
+
 		// Handle map types
 		if mapVal, ok := nativeVal.(map[string]interface{}); ok {
 			result := make(map[string]interface{})
@@ -282,7 +282,7 @@ func convertCELValue(val ref.Val) interface{} {
 			}
 			return result
 		}
-		
+
 		// Handle slice types
 		if sliceVal, ok := nativeVal.([]interface{}); ok {
 			result := make([]interface{}, len(sliceVal))
@@ -295,7 +295,7 @@ func convertCELValue(val ref.Val) interface{} {
 			}
 			return result
 		}
-		
+
 		// Return native value as-is for other types
 		return nativeVal
 	}
