@@ -22,6 +22,13 @@ This section provides practical examples of using the Git Change Operator in var
 - Branch management
 - Pull request metadata
 
+### [Prometheus API Integration](prometheus-api-example.md)
+
+- Multiple REST API queries
+- JSON parsing with CEL (Common Expression Language) expressions
+- Prometheus metrics integration
+- Configurable output formatting
+
 ## Advanced Scenarios
 
 ### [Advanced Configurations](advanced.md)

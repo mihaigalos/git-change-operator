@@ -16,6 +16,10 @@ Docs: https://gco.galos.one
 
 - **Direct File Commits**: Commit static file content to Git repositories
 - **Resource References**: Reference arbitrary Kubernetes resources and commit their data
+- **REST API Integration**: Fetch data from REST APIs with CEL-based response processing
+  - CEL (Common Expression Language) for powerful condition evaluation
+  - Dynamic data extraction and formatting from JSON responses
+  - Conditional processing based on API response status
 - **Flexible Output Strategies**: 
   - Dump entire resources as YAML
   - Extract all resource fields as separate files

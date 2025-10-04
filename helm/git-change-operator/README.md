@@ -88,7 +88,7 @@ spec:
       content: |
         app:
           name: my-app
-          version: "1.0.0"
+          version: "1.1.0"
 ```
 
 ### Example PullRequest

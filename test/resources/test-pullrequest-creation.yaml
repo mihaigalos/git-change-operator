@@ -1,0 +1,60 @@
+---
+apiVersion: gco.galos.one/v1
+kind: PullRequest
+metadata:
+  name: test-pullrequest-creation
+  namespace: default
+spec:
+  repository: https://github.com/mihaigalos/test.git
+  baseBranch: main
+  headBranch: feature-pr-test
+  title: "Test PullRequest creation functionality"
+  body: |
+    This PR tests the PullRequest creation functionality of the Git Change Operator.
+    
+    ## Changes
+    - Added test file to verify PR creation
+    - Testing CEL processing with REST API
+    
+    ## Expected Behavior
+    - Branch should be created
+    - PR should be opened on GitHub
+    - CEL condition should be evaluated
+  authSecretRef: test-git-secret
+  authSecretKey: token
+  
+  # Test REST API with CEL-based response parsing (updated to new array format)
+  restAPIs:
+    - name: "json-test"
+      url: "https://httpbin.org/json"
+      method: "GET"
+      timeoutSeconds: 30
+      maxStatusCode: 299
+      
+      # CEL-based response parsing configuration
+      responseParsing:
+        # Condition: Check if we have slideshow data
+        condition: '"slideshow" in response && "title" in response.slideshow'
+        
+        # Data expression: Extract slideshow title
+        dataExpression: 'response.slideshow.title'
+      
+      # Output format: Simple format
+      outputFormat: '"PR Test - " + data'
+
+  files:
+  - path: test/pr-creation-test.txt
+    content: "placeholder"
+    useRestAPIData: true
+  
+  - path: test/pr-info.md
+    content: |
+      # PullRequest Creation Test
+      
+      This file demonstrates PullRequest creation functionality.
+      
+      ## Features Tested
+      - Branch creation from main
+      - Pull Request opening on GitHub
+      - CEL processing integration
+      - File content with REST API data

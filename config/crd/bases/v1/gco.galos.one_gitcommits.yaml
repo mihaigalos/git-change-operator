@@ -94,6 +94,26 @@ spec:
                       type: string
                     path:
                       type: string
+                    restAPIDelimiter:
+                      default: |2+
+
+                      description: |-
+                        RestAPIDelimiter specifies how to join multiple REST API results when RestAPIName is empty
+                        Default: "\n" (newline). Common options: ", ", " | ", "\n---\n", etc.
+                        Only used when UseRestAPIData is true and RestAPIName is empty (combining all APIs)
+                      type: string
+                    restAPIName:
+                      description: |-
+                        RestAPIName specifies which REST API result to use (by name)
+                        If empty and UseRestAPIData is true, all REST API results will be combined
+                      maxLength: 63
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                      type: string
+                    useRestAPIData:
+                      description: |-
+                        UseRestAPIData indicates this file content should be the formatted REST API response
+                        When true, Content is ignored and the file will contain the API response data
+                      type: boolean
                   required:
                   - content
                   - path
@@ -140,6 +160,107 @@ spec:
                   - strategy
                   type: object
                 type: array
+              restAPIs:
+                items:
+                  description: RestAPI defines configuration for REST API integration
+                  properties:
+                    authSecretKey:
+                      description: 'AuthSecretKey is the key in the auth secret (default:
+                        token)'
+                      type: string
+                    authSecretRef:
+                      description: AuthSecretRef references a secret containing authentication
+                        credentials
+                      type: string
+                    body:
+                      description: Body is the request body for POST/PUT/PATCH requests
+                      type: string
+                    expectedStatusCodes:
+                      description: |-
+                        ExpectedStatusCodes defines acceptable HTTP response codes
+                        If empty, defaults to [200, 201, 202, 204]
+                      items:
+                        type: integer
+                      maxItems: 10
+                      minItems: 1
+                      type: array
+                    headers:
+                      additionalProperties:
+                        type: string
+                      description: Headers contains HTTP headers to send with the
+                        request
+                      type: object
+                    maxStatusCode:
+                      default: 399
+                      description: |-
+                        MaxStatusCode is the maximum acceptable status code (default: 399)
+                        Responses >= this value will prevent the GitCommit/PullRequest from executing
+                      maximum: 599
+                      minimum: 100
+                      type: integer
+                    method:
+                      default: GET
+                      description: 'Method is the HTTP method to use (default: GET)'
+                      enum:
+                      - GET
+                      - POST
+                      - PUT
+                      - PATCH
+                      - DELETE
+                      - HEAD
+                      - OPTIONS
+                      type: string
+                    name:
+                      description: Name is a unique identifier for this REST API query
+                        within the resource
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                      type: string
+                    responseParsing:
+                      description: ResponseParsing configures how to parse and use
+                        the JSON response
+                      properties:
+                        condition:
+                          description: |-
+                            Condition is a CEL expression that must evaluate to true for the operation to proceed
+                            The JSON response is available as 'response' variable
+                            Example: "response.status == 'success' && size(response.data.result) >= 2"
+                          type: string
+                        dataExpression:
+                          description: |-
+                            DataExpression is a CEL expression that extracts and transforms data from the response
+                            Should return a map with extracted values or a formatted string
+                            Example: "{'timestamp': string(response.data.result[0]), 'value': string(response.data.result[1])}"
+                          type: string
+                        outputFormat:
+                          description: |-
+                            OutputFormat is a CEL expression that formats the final output string
+                            The result of DataExpression is available as 'data' variable, current time as 'now'
+                            Example: "string(int(now)) + ',' + data.timestamp + ',' + data.value"
+                            If empty and DataExpression returns a string, that string is used directly
+                          type: string
+                      type: object
+                    timeoutSeconds:
+                      default: 30
+                      description: 'TimeoutSeconds is the request timeout in seconds
+                        (default: 30)'
+                      maximum: 300
+                      minimum: 1
+                      type: integer
+                    url:
+                      description: URL is the REST API endpoint to call
+                      pattern: ^https?://.*
+                      type: string
+                  required:
+                  - name
+                  - url
+                  type: object
+                type: array
+              ttlMinutes:
+                maximum: 43200
+                minimum: 1
+                type: integer
             required:
             - authSecretRef
             - branch
@@ -157,6 +278,52 @@ spec:
                 type: string
               phase:
                 type: string
+              restAPIStatuses:
+                items:
+                  description: RestAPIStatus tracks the status of REST API calls
+                  properties:
+                    callCount:
+                      description: CallCount is the total number of API calls made
+                      format: int64
+                      type: integer
+                    conditionMet:
+                      description: ConditionMet indicates if the CEL condition expression
+                        evaluated to true
+                      type: boolean
+                    extractedData:
+                      description: ExtractedData contains the JSON representation
+                        of data extracted by the CEL DataExpression
+                      type: string
+                    formattedOutput:
+                      description: FormattedOutput contains the final formatted string
+                        produced by the CEL OutputFormat expression
+                      type: string
+                    lastCallTime:
+                      description: LastCallTime is when the API was last called
+                      format: date-time
+                      type: string
+                    lastError:
+                      description: LastError is the error message from the last failed
+                        call
+                      type: string
+                    lastResponse:
+                      description: LastResponse is a truncated version of the last
+                        response body (max 1024 chars)
+                      type: string
+                    lastStatusCode:
+                      description: LastStatusCode is the HTTP status code from the
+                        last call
+                      type: integer
+                    name:
+                      description: Name identifies which REST API this status belongs
+                        to
+                      type: string
+                    successCount:
+                      description: SuccessCount is the number of successful API calls
+                      format: int64
+                      type: integer
+                  type: object
+                type: array
             type: object
         type: object
     served: true

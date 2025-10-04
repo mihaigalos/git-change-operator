@@ -1,0 +1,52 @@
+---
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: test-gitcommit-ttl
+  namespace: default
+spec:
+  repository: https://github.com/mihaigalos/test.git
+  branch: main
+  commitMessage: "Test commit with TTL functionality"
+  authSecretRef: test-git-secret
+  authSecretKey: token
+  ttlMinutes: 2  # Resource will be auto-deleted after 2 minutes
+  
+  # Test REST API with CEL-based response parsing
+  restAPIs:
+    - name: "httpbin-test"
+      url: "https://httpbin.org/json"
+      method: "GET"
+      timeoutSeconds: 30
+      maxStatusCode: 299
+      
+      # CEL-based response parsing configuration
+      responseParsing:
+        # Condition: Check if we have slideshow data
+        condition: '"slideshow" in response && "title" in response.slideshow'
+        
+        # Data expression: Extract slideshow title
+        dataExpression: 'response.slideshow.title'
+        
+        # Output format: Add TTL info to the output
+        outputFormat: '"TTL Test - " + data + " (expires in 2 minutes)"'
+
+  files:
+  - path: test/ttl-demo.txt
+    content: "placeholder"  # This will be replaced by CEL-processed API response
+    useRestAPIData: true
+  
+  - path: test/ttl-info.md
+    content: |
+      # TTL Functionality Test
+      
+      This file demonstrates TTL (Time-To-Live) functionality in Git Change Operator.
+      
+      ## TTL Configuration
+      - TTL set to 2 minutes from creation time
+      - Resource will be automatically deleted when expired
+      
+      ## Features Tested
+      - REST API integration with CEL processing
+      - Automatic resource cleanup based on TTL
+      - TTL field validation (1-43200 minutes allowed)

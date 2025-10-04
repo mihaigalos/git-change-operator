@@ -93,7 +93,7 @@ For the same ConfigMap above, the `fields` strategy creates:
 
 - `config/version`:
   ```
-  1.0.0
+  1.1.0
   ```
 
 ### Supported Resource Types
