@@ -35,6 +35,18 @@ jobs:
       with:
         go-version: '1.22'
     
+    - name: Install controller-gen and other tools
+      run: |
+        # Install controller-gen
+        go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+        
+        # Install kustomize
+        go install sigs.k8s.io/kustomize/kustomize/v5@latest
+        
+        # Verify installations
+        controller-gen --version
+        kustomize version
+    
     - name: Log in to Container Registry
       uses: docker/login-action@v3
       with:
