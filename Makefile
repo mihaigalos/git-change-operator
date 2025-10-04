@@ -196,6 +196,27 @@ kind-setup-encryption-keys: # Create SSH encryption keys secret for Kind cluster
 	echo "   Secret: ssh-keys/id_rsa.pub in git-change-operator namespace"; \
 	echo "   Private key for decryption: test/resources/id_rsa_4096"
 
+kind-setup-test-resources: # Apply test secrets and resources to Kind cluster (hidden)
+	@echo "📋 Setting up test resources for Kind cluster..."
+	@export PATH="/opt/homebrew/bin:$$PATH"; \
+	echo "Applying test secrets..."; \
+	kubectl apply -f test/resources/test-secret.yaml --context kind-git-change-operator || echo "⚠️ Failed to apply test-secret.yaml"; \
+	echo "Creating git-credentials secret in git-change-operator namespace from test secret..."; \
+	if kubectl get secret test-git-secret --context kind-git-change-operator -o jsonpath='{.data.token}' | base64 -d > /tmp/token 2>/dev/null; then \
+		kubectl create secret generic git-credentials \
+			--from-file=token=/tmp/token \
+			--namespace git-change-operator \
+			--context kind-git-change-operator \
+			--dry-run=client -o yaml | kubectl apply -f -; \
+		rm -f /tmp/token; \
+		echo "✅ git-credentials secret created in git-change-operator namespace"; \
+	else \
+		echo "⚠️ Could not read token from test-git-secret, using existing git-credentials"; \
+	fi; \
+	echo "Applying test GitCommit with multiple REST APIs..."; \
+	kubectl apply -f test/resources/test-gitcommit-prometheus.yaml --context kind-git-change-operator || echo "⚠️ Failed to apply test-gitcommit-prometheus.yaml"; \
+	echo "✅ Test resources applied!"
+
 kind-patch-operator: # Patch operator deployment to disable it for CRD-only testing (hidden)
 	@echo "🔧 Patching operator deployment for testing..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
@@ -338,7 +359,7 @@ kind-status: # Show Kind cluster and operator status (hidden)
 				if [ -n "$$ERROR_MSG" ]; then \
 					echo "  💬 Message: $$ERROR_MSG"; \
 				fi; \
-				break; \
+				exit 1; \
 			elif [ "$$COMMIT_PHASE" = "Running" ]; then \
 				echo "  🔄 Commit is running, waiting..."; \
 			elif [ "$$COMMIT_PHASE" = "Pending" ]; then \
@@ -353,12 +374,13 @@ kind-status: # Show Kind cluster and operator status (hidden)
 		done; \
 		if [ $$ATTEMPTS -eq $$MAX_ATTEMPTS ] && [ "$$COMMIT_PHASE" != "Committed" ] && [ "$$COMMIT_PHASE" != "Failed" ]; then \
 			echo "  ⏰ Timeout: Commit still processing after 10 seconds. Check logs for details."; \
+			exit 1; \
 		fi; \
 	else \
 		echo "No GitCommit resources found to check"; \
 	fi
 
-kind-full-demo: kind-destroy kind-create kind-deploy kind-load-image kind-setup-token kind-setup-encryption-keys kind-demo kind-status ## Complete Kind demo workflow
+kind-full-demo: kind-destroy kind-create kind-deploy kind-load-image kind-setup-token kind-setup-encryption-keys kind-setup-test-resources kind-demo kind-status ## Complete Kind demo workflow
 	@echo ""
 	@echo "🎉 Complete Kind Demo Workflow Finished!"
 	@echo "========================================"
@@ -453,4 +475,4 @@ docs-clean: ## Clean built documentation and virtual environment
 	rm -rf site/
 	rm -rf docs/.venv/
 
-.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy kube-setup-token kind-create kind-deploy kind-setup-token kind-setup-encryption-keys kind-patch-operator kind-demo kind-load-image kind-restart-operator kind-build-and-test kind-status kind-destroy kind-destroy kind-full-demo helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy docs-venv docs-deps docs-serve docs-serve-versioned docs-build docs-deploy docs-version-deploy docs-version-set-default docs-version-list docs-clean
+.PHONY: help fmt vet build run clean test test-unit setup-test-env test-integration test-all docker-build docker-push install uninstall deploy undeploy kube-setup-token kind-create kind-deploy kind-setup-token kind-setup-encryption-keys kind-setup-test-resources kind-patch-operator kind-demo kind-load-image kind-restart-operator kind-build-and-test kind-status kind-destroy kind-destroy kind-full-demo helm-lint helm-template helm-package helm-install helm-uninstall helm-deploy docs-venv docs-deps docs-serve docs-serve-versioned docs-build docs-deploy docs-version-deploy docs-version-set-default docs-version-list docs-clean
