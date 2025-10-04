@@ -13,22 +13,23 @@ spec:
   ttlMinutes: 2  # Resource will be auto-deleted after 2 minutes
   
   # Test REST API with CEL-based response parsing
-  restAPI:
-    url: "https://httpbin.org/json"
-    method: "GET"
-    timeoutSeconds: 30
-    maxStatusCode: 299
-    
-    # CEL-based response parsing configuration
-    responseParsing:
-      # Condition: Check if we have slideshow data
-      condition: '"slideshow" in response && "title" in response.slideshow'
+  restAPIs:
+    - name: "httpbin-test"
+      url: "https://httpbin.org/json"
+      method: "GET"
+      timeoutSeconds: 30
+      maxStatusCode: 299
       
-      # Data expression: Extract slideshow title
-      dataExpression: 'response.slideshow.title'
-      
-      # Output format: Add TTL info to the output
-      outputFormat: '"TTL Test - " + data + " (expires in 2 minutes)"'
+      # CEL-based response parsing configuration
+      responseParsing:
+        # Condition: Check if we have slideshow data
+        condition: '"slideshow" in response && "title" in response.slideshow'
+        
+        # Data expression: Extract slideshow title
+        dataExpression: 'response.slideshow.title'
+        
+        # Output format: Add TTL info to the output
+        outputFormat: '"TTL Test - " + data + " (expires in 2 minutes)"'
 
   files:
   - path: test/ttl-demo.txt
