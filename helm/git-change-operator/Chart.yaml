@@ -2,7 +2,7 @@ apiVersion: v2
 name: git-change-operator
 description: A Kubernetes operator for managing Git commits and pull requests
 type: application
-version: 1.0.0
+version: 1.1.0
 appVersion: "1.1.0"
 keywords:
   - operator
