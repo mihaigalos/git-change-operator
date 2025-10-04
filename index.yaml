@@ -5,9 +5,9 @@ entries:
       category: Developer Tools
     apiVersion: v2
     appVersion: 1.1.0
-    created: "2025-10-04T20:32:40.435036862Z"
+    created: "2025-10-04T20:42:10.130004676Z"
     description: A Kubernetes operator for managing Git commits and pull requests
-    digest: 9bb21bd1b6b2237054a611f5e03929c97f17752f6d26eff05a4191781ea608e7
+    digest: 8160f09e1fc31911823977fda989f32ad232b866fc3613eb521763ff895cdca0
     home: https://github.com/mihaigalos/git-change-operator
     keywords:
     - operator
@@ -23,6 +23,6 @@ entries:
     - https://github.com/mihaigalos/git-change-operator
     type: application
     urls:
-    - git-change-operator-1.0.0.tgz
-    version: 1.0.0
-generated: "2025-10-04T20:32:40.415769705Z"
+    - git-change-operator-1.1.0.tgz
+    version: 1.1.0
+generated: "2025-10-04T20:42:10.101712905Z"
