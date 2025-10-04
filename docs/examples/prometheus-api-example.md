@@ -1,6 +1,7 @@
 # Example GitCommit with REST API JSON parsing for Prometheus metrics
 
 This example shows how to use the new REST API integration with JSON parsing to:
+
 1. Query a Prometheus API endpoint
 2. Parse the JSON response 
 3. Extract specific data fields
