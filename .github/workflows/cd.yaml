@@ -29,6 +29,7 @@ jobs:
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
+        lfs: true
     
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -130,6 +131,9 @@ jobs:
       run: |
         VERSION="${{ steps.version.outputs.version }}"
         echo "Deploying documentation for release: ${VERSION}"
+        
+        # Ensure LFS files are available
+        git lfs pull
         
         # Setup git for mike
         git config --global user.name "github-actions[bot]"
