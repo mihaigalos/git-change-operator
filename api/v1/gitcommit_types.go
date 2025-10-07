@@ -146,6 +146,13 @@ type File struct {
 	// Only used when UseRestAPIData is true and RestAPIName is empty (combining all APIs)
 	// +kubebuilder:default="\n"
 	RestAPIDelimiter string `json:"restAPIDelimiter,omitempty"`
+
+	// WriteMode controls how the file content is written to the repository
+	// "overwrite" (default) - replaces existing file content entirely
+	// "append" - adds content to the end of existing files
+	// +kubebuilder:validation:Enum=overwrite;append
+	// +kubebuilder:default=overwrite
+	WriteMode WriteMode `json:"writeMode,omitempty"`
 }
 
 type ResourceRef struct {

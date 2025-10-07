@@ -9,7 +9,6 @@ spec:
   commitMessage: "Smart meter power consumption analysis from Prometheus"
   authSecretRef: github-data-smartmeter
   authSecretKey: token
-  writeMode: "append"
   ttlMinutes: 5
   restAPIs:
     # SCALAR query - result is [timestamp, value]
@@ -49,6 +48,7 @@ spec:
         outputFormat: 'data'
   files:
     - path: power-readings.csv
-      content: "placeholder"
+      content: "timestamp,power_consumption,injected_power,current_power\n"
       useRestAPIData: true
       restAPIDelimiter: ", "
+      writeMode: "append"

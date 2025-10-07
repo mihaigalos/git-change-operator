@@ -22,10 +22,10 @@ metadata:
   name: overwrite-example
 spec:
   # ... repository and auth config
-  writeMode: "overwrite"  # This is the default
   
   files:
     - path: "config/app.properties"
+      writeMode: "overwrite"  # This is the default
       content: |
         server.port=8080
         debug=true
@@ -74,10 +74,10 @@ metadata:
   name: append-example
 spec:
   # ... repository and auth config  
-  writeMode: "append"
   
   files:
     - path: "logs/deployment.log"
+      writeMode: "append"
       content: |
         2023-10-01 10:00:00 - Deployment started
         2023-10-01 10:05:00 - Application healthy
@@ -114,7 +114,7 @@ spec:
 
 ## Resource References and Write Modes
 
-Write modes apply to both static files and resource references:
+Write modes can be configured per-file and also apply to resource references through their output strategy:
 
 ### Overwrite with Resource References
 
@@ -125,16 +125,16 @@ metadata:
   name: config-export
 spec:
   # ... repository and auth config
-  writeMode: "overwrite"
   
-  resourceReferences:
-    - name: "app-config"
-      apiVersion: "v1"
+  resourceRefs:
+    - apiVersion: "v1"
       kind: "ConfigMap"
+      name: "app-config"
       namespace: "default"
-      strategy: "dump"
-      output:
+      strategy:
+        type: "dump"
         path: "exported/app-config.yaml"
+        writeMode: "overwrite"
 ```
 
 **Result**: Replaces `exported/app-config.yaml` with current ConfigMap state.
@@ -148,17 +148,18 @@ metadata:
   name: log-collection
 spec:
   # ... repository and auth config
-  writeMode: "append"
   
-  resourceReferences:
-    - name: "application-logs"
-      apiVersion: "v1"
+  resourceRefs:
+    - apiVersion: "v1"
       kind: "ConfigMap"
+      name: "application-logs"
       namespace: "default"
-      strategy: "single-field"
-      field: "latest.log"
-      output:
+      strategy:
+        type: "single-field"
         path: "aggregated/all-logs.txt"
+        writeMode: "append"
+        fieldRef:
+          key: "latest.log"
 ```
 
 **Result**: Adds the log content to the end of `aggregated/all-logs.txt`.
@@ -173,63 +174,58 @@ kind: GitCommit
 metadata:
   name: mixed-content
 spec:
-  repository:
-    url: "https://github.com/user/config-repo.git"
-  auth:
-    secretName: "git-credentials"
-  commit:
-    author: "Operator <operator@example.com>"
-    message: "Update configurations and logs"
-    
-  writeMode: "append"
+  repository: "https://github.com/user/config-repo.git"
+  branch: "main"
+  commitMessage: "Update configurations and logs"
+  authSecretRef: "git-credentials"
   
   files:
-    # Static timestamp
+    # Static timestamp with append mode
     - path: "activity/timestamps.log"
+      writeMode: "append"
       content: |
         {{ .Timestamp }} - GitCommit reconciliation started
         
-  resourceReferences:
-    # Append ConfigMap data to log file
-    - name: "audit-log"
-      apiVersion: "v1"
+  resourceRefs:
+    # Append ConfigMap data to same log file
+    - apiVersion: "v1"
       kind: "ConfigMap"
+      name: "audit-log"
       namespace: "default"
-      strategy: "single-field"  
-      field: "audit.log"
-      output:
+      strategy:
+        type: "single-field"
         path: "activity/timestamps.log"  # Same file as above
+        writeMode: "append"
+        fieldRef:
+          key: "audit.log"
 ```
 
 ### Per-File Write Mode Control
 
-Currently, write mode applies to all files in a GitCommit. For different behaviors, use separate GitCommit resources:
+Each file can have its own write mode within a single GitCommit:
 
 ```yaml
-# Overwrite configuration files
 apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
-  name: config-update
+  name: mixed-write-modes
 spec:
   # ... repository and auth config
-  writeMode: "overwrite"
+  
   files:
+    # Overwrite configuration file
     - path: "config/app.yaml"
+      writeMode: "overwrite"  # Replace entire config
       content: "# Fresh config"
       
----
-# Append to log files  
-apiVersion: gco.galos.one/v1
-kind: GitCommit
-metadata:
-  name: log-update
-spec:
-  # ... repository and auth config
-  writeMode: "append" 
-  files:
+    # Append to log file
     - path: "logs/activity.log"
+      writeMode: "append"     # Add to existing logs
       content: "New log entry"
+      
+    # Default behavior (overwrite)
+    - path: "status/health.txt"
+      content: "System healthy"  # writeMode defaults to "overwrite"
 ```
 
 ## Best Practices
@@ -263,12 +259,14 @@ spec:
 ### File Management
 
 ```yaml
-# Good: Clear intent with appropriate mode
+# Good: Clear intent with appropriate mode per file
 files:
-  - path: "config/database.yaml"      # Overwrite mode (default)
+  - path: "config/database.yaml"
+    writeMode: "overwrite"           # Explicit overwrite for config
     content: "host: db.example.com"
     
-  - path: "logs/deployment.log"       # Should use append mode
+  - path: "logs/deployment.log"
+    writeMode: "append"              # Explicit append for logs
     content: "Deployment completed"
 ```
 
@@ -301,9 +299,9 @@ See [Error Handling](error-handling.md) for detailed troubleshooting information
 
 ```yaml
 # Step 1: Final overwrite with baseline content
-writeMode: "overwrite"
 files:
   - path: "logs/audit.log" 
+    writeMode: "overwrite"
     content: |
       # Audit Log Started
       2023-10-01 00:00:00 - Baseline established
@@ -311,9 +309,9 @@ files:
 
 ```yaml  
 # Step 2: Switch to append mode
-writeMode: "append"
 files:
   - path: "logs/audit.log"
+    writeMode: "append"
     content: |
       2023-10-01 10:00:00 - First append entry
 ```
