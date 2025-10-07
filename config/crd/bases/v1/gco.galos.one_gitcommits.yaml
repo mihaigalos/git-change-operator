@@ -114,6 +114,16 @@ spec:
                         UseRestAPIData indicates this file content should be the formatted REST API response
                         When true, Content is ignored and the file will contain the API response data
                       type: boolean
+                    writeMode:
+                      default: overwrite
+                      description: |-
+                        WriteMode controls how the file content is written to the repository
+                        "overwrite" (default) - replaces existing file content entirely
+                        "append" - adds content to the end of existing files
+                      enum:
+                      - overwrite
+                      - append
+                      type: string
                   required:
                   - content
                   - path

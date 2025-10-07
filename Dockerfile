@@ -38,7 +38,7 @@ COPY controllers/ controllers/
 COPY helm/ helm/
 COPY config/crd/bases/ config/crd/bases/
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -o manager main.go && chmod +x manager
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -a -o operator main.go && chmod +x operator
 
 # Resolve symlinks in Helm chart to avoid broken symlinks in final image
 RUN mkdir -p /workspace/helm-resolved && \
@@ -89,8 +89,8 @@ RUN addgroup -S user && adduser -S user -G user
 WORKDIR /home/user
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /workspace/manager /home/user/manager
-RUN chmod +x /home/user/manager
+COPY --from=builder /workspace/operator /home/user/operator
+RUN chmod +x /home/user/operator
 
 # Copy resolved Helm chart (without broken symlinks)
 COPY --from=builder /workspace/helm-resolved /home/user/helm/git-change-operator
@@ -98,4 +98,4 @@ COPY --from=builder /workspace/helm-resolved /home/user/helm/git-change-operator
 USER user
 RUN echo ${GIT_REFERENCE} > git_reference
 
-ENTRYPOINT ["/home/user/manager"]
+ENTRYPOINT ["/home/user/operator"]

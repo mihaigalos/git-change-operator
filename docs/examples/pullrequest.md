@@ -60,6 +60,7 @@ spec:
     
   files:
     - path: "config/application.properties"
+      writeMode: "overwrite"  # Replace entire configuration file
       content: |
         # Application Configuration - Updated via Operator
         server.port=8080
