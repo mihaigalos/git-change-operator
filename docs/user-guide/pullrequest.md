@@ -9,6 +9,7 @@ PullRequest resources enable you to:
 - **Implement change approval workflows** through Git-based review processes
 - **Sync cluster state** to Git repositories with proper change tracking
 - **Integrate with CI/CD pipelines** triggered by pull request events
+- **Control file write behavior** with overwrite or append modes (see [Write Modes](../reference/write-modes.md))
 
 ## Basic PullRequest Resource
 
@@ -139,14 +140,17 @@ spec:
       {{ $value | indent 4 }}
       {{ end }}
 
-  # Write configuration
-  writeMode: "overwrite"
-  fileMode: "0644"
-  createDirs: true
-
-  # Reconciliation settings
-  reconcileInterval: "300s"
-  suspend: false
+  # Additional files can be included
+  files:
+    - path: "config/{{ .metadata.name }}.yaml"
+      writeMode: "overwrite"
+      content: |
+        # Generated configuration for {{ .metadata.name }}
+        # Last updated: {{ .timestamp }}
+        
+  # Authentication
+  authSecretRef: "github-token"
+  authSecretKey: "token"
 
   # Auto-merge settings (optional)
   autoMerge:
@@ -402,6 +406,7 @@ spec:
   
   files:
     - path: "secrets/database.yaml"
+      writeMode: "overwrite"  # Replace entire file (default)
       content: |
         database:
           host: db.example.com
@@ -410,6 +415,10 @@ spec:
             -----BEGIN CERTIFICATE-----
             MIIBkTCB+wIJANfKvPOD7JEBMA0GCSqGSIb3DQEBBQUAMBkx...
             -----END CERTIFICATE-----
+    - path: "audit/pr-changes.log" 
+      writeMode: "append"     # Add to existing log file
+      content: |
+        {{ .timestamp }} - PullRequest created: {{ .title }}
 ```
 
 **Advanced encryption with multiple recipient types:**

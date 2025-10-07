@@ -1,6 +1,6 @@
 # Write Modes
 
-Write modes control how the Git Change Operator handles existing file content when writing files to your Git repository.
+Write modes control how the Git Change Operator handles existing file content when writing files to your Git repository. This applies to both GitCommit and PullRequest resources.
 
 ## Overview
 
