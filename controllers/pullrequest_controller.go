@@ -341,17 +341,26 @@ func (r *PullRequestReconciler) createPullRequest(ctx context.Context, pr *gitv1
 			return 0, "", err
 		}
 
+		// Handle writeMode for file content
+		var finalContent []byte
+		if file.WriteMode == gitv1.WriteModeAppend {
+			existingContent, _ := os.ReadFile(filePath)
+			finalContent = append(existingContent, content...)
+		} else {
+			finalContent = content
+		}
+
 		// Encrypt file content if encryption is enabled
 		if encryption.ShouldEncryptFile(file.Path, pr.Spec.Encryption) {
-			encryptedContent, err := r.encryptFileContent(ctx, content, pr.Spec.Encryption, pr.Namespace)
+			encryptedContent, err := r.encryptFileContent(ctx, finalContent, pr.Spec.Encryption, pr.Namespace)
 			if err != nil {
 				return 0, "", fmt.Errorf("failed to encrypt file %s: %w", file.Path, err)
 			}
-			content = encryptedContent
+			finalContent = encryptedContent
 			filePath = encryption.GetEncryptedFilePath(filePath, pr.Spec.Encryption)
 		}
 
-		if err := os.WriteFile(filePath, content, 0644); err != nil {
+		if err := os.WriteFile(filePath, finalContent, 0644); err != nil {
 			return 0, "", err
 		}
 

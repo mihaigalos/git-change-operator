@@ -258,7 +258,7 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 
 			// Handle write modes
 			var content []byte
-			if resourceRef.Strategy.WriteMode == gitv1.WriteModeAppend {
+			if file.WriteMode == gitv1.WriteModeAppend {
 				// Read existing file if it exists
 				tempFilePath := filepath.Join(tempDir, file.Path)
 				if existingContent, err := ioutil.ReadFile(tempFilePath); err == nil {
