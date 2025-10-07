@@ -462,6 +462,7 @@ docs-version-deploy: docs-deps docs-prepare # Deploy a new version of documentat
 ifndef VERSION
 	$(error VERSION is required. Usage: make docs-version-deploy VERSION=1.1.0)
 endif
+	git fetch origin gh-pages 2>/dev/null || true && \
 	source docs/.venv/bin/activate && mike deploy --push --branch gh-pages --update-aliases $(VERSION) latest && $(MAKE) docs-restore
 
 docs-version-set-default: docs-deps ## Set default version for documentation (usage: make docs-version-set-default VERSION=1.0.0)
