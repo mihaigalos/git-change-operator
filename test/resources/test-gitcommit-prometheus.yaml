@@ -45,7 +45,7 @@ spec:
       responseParsing:
         condition: 'response.status == "success" && response.data.resultType == "vector" && size(response.data.result) > 0'
         # For vector: result[0].value[0] = timestamp, result[0].value[1] = value
-        dataExpression: 'response.data.result[0].value[1] == "NaN" ? "No Data" : string(double(response.data.result[0].value[1]))'
+        dataExpression: '(response.data.result[0].value[1] == "NaN" ? "No Data" : string(double(response.data.result[0].value[1]))) + "\n"'
         outputFormat: 'data'
   files:
     - path: power-readings.csv
