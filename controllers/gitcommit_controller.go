@@ -237,7 +237,16 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 			return "", err
 		}
 
-		if err := ioutil.WriteFile(filePath, content, 0644); err != nil {
+		// Handle writeMode for file content
+		var finalContent []byte
+		if file.WriteMode == gitv1.WriteModeAppend {
+			existingContent, _ := ioutil.ReadFile(filePath)
+			finalContent = append(existingContent, content...)
+		} else {
+			finalContent = content
+		}
+
+		if err := ioutil.WriteFile(filePath, finalContent, 0644); err != nil {
 			return "", err
 		}
 
