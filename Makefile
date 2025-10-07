@@ -202,16 +202,18 @@ kind-setup-test-resources: # Apply test secrets and resources to Kind cluster (h
 	echo "Applying test secrets..."; \
 	kubectl apply -f test/resources/test-secret.yaml --context kind-git-change-operator || echo "⚠️ Failed to apply test-secret.yaml"; \
 	echo "Creating git-credentials secret in git-change-operator namespace from test secret..."; \
-	if kubectl get secret test-git-secret --context kind-git-change-operator -o jsonpath='{.data.token}' | base64 -d > /tmp/token 2>/dev/null; then \
+	if kubectl get secret test-git-secret --context kind-git-change-operator -o jsonpath='{.data.token}' | base64 -d > /tmp/token 2>/dev/null && [ -s /tmp/token ]; then \
 		kubectl create secret generic git-credentials \
 			--from-file=token=/tmp/token \
 			--namespace git-change-operator \
 			--context kind-git-change-operator \
 			--dry-run=client -o yaml | kubectl apply -f -; \
 		rm -f /tmp/token; \
-		echo "✅ git-credentials secret created in git-change-operator namespace"; \
+		echo "✅ git-credentials secret created in git-change-operator namespace from test secret"; \
 	else \
-		echo "⚠️ Could not read token from test-git-secret, using existing git-credentials"; \
+		rm -f /tmp/token; \
+		echo "⚠️ Could not read token from test-git-secret, setting up token from file or interactively..."; \
+		$(MAKE) kube-setup-token KUBE_CONTEXT=kind-git-change-operator KUBE_NAMESPACE=git-change-operator; \
 	fi; \
 	echo "Applying test GitCommit with multiple REST APIs..."; \
 	kubectl apply -f test/resources/test-gitcommit-prometheus.yaml --context kind-git-change-operator || echo "⚠️ Failed to apply test-gitcommit-prometheus.yaml"; \

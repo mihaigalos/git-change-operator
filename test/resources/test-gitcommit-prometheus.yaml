@@ -4,10 +4,10 @@ kind: GitCommit
 metadata:
   name: test-gitcommit-prometheus
 spec:
-  repository: https://github.com/mihaigalos/data-smartmeter.git
+  repository: https://github.com/mihaigalos/test.git
   branch: main
   commitMessage: "Smart meter power consumption analysis from Prometheus"
-  authSecretRef: github-data-smartmeter
+  authSecretRef: git-credentials
   authSecretKey: token
   ttlMinutes: 5
   restAPIs:
@@ -20,7 +20,8 @@ spec:
       responseParsing:
         condition: 'response.status == "success" && response.data.resultType == "scalar" && size(response.data.result) == 2'
         # For scalar: result[0] = timestamp, result[1] = value
-        dataExpression: 'string(timestamp(int(double(response.data.result[0])))) + ", " + (response.data.result[1] == "NaN" ? "No Data" : string.format("%.3f", double(response.data.result[1])))'
+        dataExpression:         # For scalar: timestamp, value with NaN handling 
+        dataExpression: 'string(timestamp(int(double(response.data.result[0])))) + ", " + (response.data.result[1] == "NaN" ? "No Data" : string(double(response.data.result[1])))'
         outputFormat: 'data'
 
     # SCALAR query - result is [timestamp, value]
@@ -32,7 +33,7 @@ spec:
       responseParsing:
         condition: 'response.status == "success" && response.data.resultType == "scalar" && size(response.data.result) == 2'
         # For scalar: just the value part
-        dataExpression: '(response.data.result[1] == "NaN" ? "0.0" : string.format("%.3f", double(response.data.result[1])))'
+        dataExpression: '(response.data.result[1] == "NaN" ? "0.0" : string(double(response.data.result[1])))'
         outputFormat: 'data'
 
     # VECTOR query - result is array of objects with .value[timestamp, value]
@@ -44,7 +45,7 @@ spec:
       responseParsing:
         condition: 'response.status == "success" && response.data.resultType == "vector" && size(response.data.result) > 0'
         # For vector: result[0].value[0] = timestamp, result[0].value[1] = value
-        dataExpression: 'response.data.result[0].value[1] == "NaN" ? "No Data" : string.format("%.3f", double(response.data.result[0].value[1]))'
+        dataExpression: 'response.data.result[0].value[1] == "NaN" ? "No Data" : string(double(response.data.result[0].value[1]))'
         outputFormat: 'data'
   files:
     - path: power-readings.csv
