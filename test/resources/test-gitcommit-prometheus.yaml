@@ -3,6 +3,7 @@ apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: test-gitcommit-prometheus
+  namespace: git-change-operator
 spec:
   repository: https://github.com/mihaigalos/test.git
   branch: main
