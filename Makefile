@@ -82,9 +82,9 @@ docker-build: ## Build docker image
 	else \
 		echo "corporate-config.env not found, proceeding without it"; \
 	fi
-	@if [ -n "${SSL_CERT_FILE}" ] && [ -f "${SSL_CERT_FILE}" ]; then \
+	@if [ -n "${SSL_CERT_FILE}" ] && [ -f "$$(eval echo ${SSL_CERT_FILE})" ]; then \
 		echo "Reading corporate certificate content from ${SSL_CERT_FILE}..."; \
-		CERT_CONTENT=$$(cat "${SSL_CERT_FILE}"); \
+		CERT_CONTENT=$$(cat "$$(eval echo ${SSL_CERT_FILE})"); \
 	else \
 		echo "No corporate certificate configured or found, using system certificates"; \
 		CERT_CONTENT=""; \
