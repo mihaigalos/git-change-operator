@@ -48,7 +48,7 @@ spec:
         outputFormat: 'data'
   files:
     - path: power-readings.csv
-      content: "timestamp,power_consumption,injected_power,current_power\n"
+      content: "placeholder"
       useRestAPIData: true
       restAPIDelimiter: ", "
       writeMode: "append"
