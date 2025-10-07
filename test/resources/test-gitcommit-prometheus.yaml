@@ -3,63 +3,52 @@ apiVersion: gco.galos.one/v1
 kind: GitCommit
 metadata:
   name: test-gitcommit-prometheus
-  namespace: default
 spec:
-  repository: https://github.com/mihaigalos/test.git
+  repository: https://github.com/mihaigalos/data-smartmeter.git
   branch: main
   commitMessage: "Smart meter power consumption analysis from Prometheus"
-  authSecretRef: test-git-secret
+  authSecretRef: github-data-smartmeter
   authSecretKey: token
-  ttlMinutes: 5  # Keep this test for 5 minutes
-
-  # Multiple REST API queries for comprehensive monitoring data
+  writeMode: "append"
+  ttlMinutes: 5
   restAPIs:
-    # Query 1: Smart meter power consumption analysis
+    # SCALAR query - result is [timestamp, value]
     - name: "power-consumption"
       url: "https://cloud.galos.one/prometheus/api/v1/query?query=scalar(max(max_over_time(smartmeter%7Bkind%3D%22total_power%22%7D%5B1d%5D))-max(max_over_time(smartmeter%7Bkind%3D%22total_power%22%7D%5B1d%5D%20offset%201d)))"
       method: "GET"
       timeoutSeconds: 30
       maxStatusCode: 299
       responseParsing:
-        # Check if we have a successful Prometheus response with scalar result
         condition: 'response.status == "success" && response.data.resultType == "scalar" && size(response.data.result) == 2'
-        # Extract and format timestamp, handle NaN values gracefully
-        dataExpression: 'string(timestamp(int(double(response.data.result[0])))) + ", " + (response.data.result[1] == "NaN" ? "No Data" : string(double(response.data.result[1])))'
-        # Simple output format - just the data without labels
+        # For scalar: result[0] = timestamp, result[1] = value
+        dataExpression: 'string(timestamp(int(double(response.data.result[0])))) + ", " + (response.data.result[1] == "NaN" ? "No Data" : string.format("%.3f", double(response.data.result[1])))'
         outputFormat: 'data'
-    
-    # Query 2: Current smart meter total power reading  
+
+    # SCALAR query - result is [timestamp, value]
+    - name: "injected-power"
+      url: "https://cloud.galos.one/prometheus/api/v1/query?query=scalar(max(max_over_time(smartmeter%7Bkind%3D%22total_powerN%22%7D%5B1d%5D%20offset%20-1d))-min(min_over_time(smartmeter%7Bkind%3D%22total_powerN%22%7D%5B1d%5D%20offset%20-1d)))"
+      method: "GET"
+      timeoutSeconds: 30
+      maxStatusCode: 299
+      responseParsing:
+        condition: 'response.status == "success" && response.data.resultType == "scalar" && size(response.data.result) == 2'
+        # For scalar: just the value part
+        dataExpression: '(response.data.result[1] == "NaN" ? "0.0" : string.format("%.3f", double(response.data.result[1])))'
+        outputFormat: 'data'
+
+    # VECTOR query - result is array of objects with .value[timestamp, value]
     - name: "current-power"
       url: "https://cloud.galos.one/prometheus/api/v1/query?query=smartmeter%7Bkind%3D%22total_power%22%7D"
       method: "GET"
       timeoutSeconds: 30
       maxStatusCode: 299
       responseParsing:
-        # Check if we have a successful Prometheus vector response with at least one result
         condition: 'response.status == "success" && response.data.resultType == "vector" && size(response.data.result) > 0'
-        # Extract and format timestamp, handle NaN values gracefully
-        dataExpression: 'string(int(double(response.data.result[0].value[0]))) + ", " + (response.data.result[0].value[1] == "NaN" ? "No Data" : string(double(response.data.result[0].value[1])))'
-        # Format output - just the data without labels
+        # For vector: result[0].value[0] = timestamp, result[0].value[1] = value
+        dataExpression: 'response.data.result[0].value[1] == "NaN" ? "No Data" : string.format("%.3f", double(response.data.result[0].value[1]))'
         outputFormat: 'data'
-
   files:
-  - path: monitoring/power-consumption-analysis.txt
-    content: "placeholder"  # Will be replaced by combined results from all REST APIs
-    useRestAPIData: true
-    restAPIDelimiter: " | "  # Join multiple API results with pipe separator
-  - path: monitoring/power-data.txt
-    content: "placeholder"  # Will be replaced by specific REST API results
-    useRestAPIData: true
-    restAPIName: "power-consumption"  # Only use results from this specific API
-  - path: monitoring/current-power-data.txt
-    content: "placeholder"
-    useRestAPIData: true
-    restAPIName: "current-power"  # Only use results from current power API
-  - path: monitoring/combined-report.txt
-    content: "placeholder"  # Combined with custom delimiter
-    useRestAPIData: true
-    restAPIDelimiter: "\n---\n"  # Join with separator line between API results
-  - path: monitoring/csv-format.txt
-    content: "placeholder"  # CSV-style combination
-    useRestAPIData: true
-    restAPIDelimiter: ", "
+    - path: power-readings.csv
+      content: "placeholder"
+      useRestAPIData: true
+      restAPIDelimiter: ", "
