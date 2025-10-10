@@ -20,20 +20,20 @@ spec:
       maxStatusCode: 299
       responseParsing:
         condition: 'response.status == "success" && response.data.resultType == "scalar" && size(response.data.result) == 2'
-        # For scalar: result[0] = timestamp, result[1] = value with NaN handling 
-        dataExpression: 'string(timestamp(int(double(response.data.result[0])))) + ", " + (response.data.result[1] == "NaN" ? "No Data" : string(double(response.data.result[1])))'
+        # For scalar: result[0] = timestamp, result[1] = value with NaN handling
+        dataExpression: '"\n" + string(timestamp(int(double(response.data.result[0])))) + ", " + (response.data.result[1] == "NaN" ? "No Data" : string(double(response.data.result[1])))'
         outputFormat: 'data'
 
     # SCALAR query - result is [timestamp, value]
     - name: "injected-power"
-      url: "https://cloud.galos.one/prometheus/api/v1/query?query=scalar(max(max_over_time(smartmeter%7Bkind%3D%22total_powerN%22%7D%5B1d%5D%20offset%20-1d))-min(min_over_time(smartmeter%7Bkind%3D%22total_powerN%22%7D%5B1d%5D%20offset%20-1d)))"
+      url: "https://cloud.galos.one/prometheus/api/v1/query?query=scalar((max(max_over_time(smartmeter%7Bkind%3D%22total_powerN%22%7D%5B1d%5D))%20-%20min(min_over_time(smartmeter%7Bkind%3D%22total_powerN%22%7D%5B1d%5D)))%20/%201000)"
       method: "GET"
       timeoutSeconds: 30
       maxStatusCode: 299
       responseParsing:
-        condition: 'response.status == "success" && response.data.resultType == "scalar" && size(response.data.result) == 2'
-        # For scalar: just the value part
-        dataExpression: '(response.data.result[1] == "NaN" ? "0.0" : string(double(response.data.result[1])))'
+        condition: 'response.status == "success" && ((response.data.resultType == "scalar" && size(response.data.result) == 2) || (response.data.resultType == "vector" && size(response.data.result) > 0))'
+        # Handle both scalar and vector results
+        dataExpression: 'response.data.resultType == "scalar" ? (response.data.result[1] == "NaN" ? "0.0" : string(double(response.data.result[1]))) : (response.data.result[0].value[1] == "NaN" ? "0.0" : string(double(response.data.result[0].value[1])))'
         outputFormat: 'data'
 
     # VECTOR query - result is array of objects with .value[timestamp, value]

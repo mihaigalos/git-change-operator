@@ -87,12 +87,31 @@ func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
-	if err := r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhaseRunning, "Processing git commit"); err != nil {
-		return ctrl.Result{}, err
+	// Only update to Running if not already Running to prevent update conflicts
+	if gitCommit.Status.Phase != gitv1.GitCommitPhaseRunning {
+		if err := r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhaseRunning, "Processing git commit"); err != nil {
+			if errors.IsConflict(err) {
+				// If there's a conflict, another reconciler is handling this, so back off
+				log.Info("Status update conflict, backing off")
+				return ctrl.Result{RequeueAfter: time.Second * 5}, nil
+			}
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Check REST API conditions if configured
 	if len(gitCommit.Spec.RestAPIs) > 0 {
+		// Circuit breaker: check if any REST API has exceeded retry limits
+		for _, status := range gitCommit.Status.RestAPIStatuses {
+			if status.CallCount >= 10 {
+				log.Error(fmt.Errorf("REST API retry limit exceeded"), "Failing GitCommit due to circuit breaker",
+					"restAPI", status.Name, "callCount", status.CallCount)
+				r.updateStatus(ctx, &gitCommit, gitv1.GitCommitPhaseFailed,
+					fmt.Sprintf("REST API '%s' exceeded maximum retry limit (%d calls)", status.Name, status.CallCount))
+				return ctrl.Result{}, nil // Don't requeue
+			}
+		}
+
 		allConditionsMet, err := r.checkRestAPIConditions(ctx, &gitCommit)
 		if err != nil {
 			log.Error(err, "failed to check REST API conditions")
@@ -328,12 +347,52 @@ func (r *GitCommitReconciler) performGitCommit(ctx context.Context, gitCommit *g
 }
 
 func (r *GitCommitReconciler) updateStatus(ctx context.Context, gitCommit *gitv1.GitCommit, phase gitv1.GitCommitPhase, message string) error {
-	gitCommit.Status.Phase = phase
-	gitCommit.Status.Message = message
-	now := metav1.Now()
-	gitCommit.Status.LastSync = &now
+	log := log.FromContext(ctx)
 
-	return r.Status().Update(ctx, gitCommit)
+	// Retry logic to handle optimistic concurrency conflicts
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		// Get fresh copy of the resource to avoid conflicts
+		fresh := &gitv1.GitCommit{}
+		if err := r.Get(ctx, client.ObjectKeyFromObject(gitCommit), fresh); err != nil {
+			return err
+		}
+
+		// Update status on fresh copy
+		fresh.Status.Phase = phase
+		fresh.Status.Message = message
+		now := metav1.Now()
+		fresh.Status.LastSync = &now
+
+		// Copy over REST API statuses if they exist in the original
+		if len(gitCommit.Status.RestAPIStatuses) > 0 {
+			fresh.Status.RestAPIStatuses = gitCommit.Status.RestAPIStatuses
+		}
+
+		// Copy over CommitSHA if it exists
+		if gitCommit.Status.CommitSHA != "" {
+			fresh.Status.CommitSHA = gitCommit.Status.CommitSHA
+		}
+
+		err := r.Status().Update(ctx, fresh)
+		if err == nil {
+			// Success - update the original object with the fresh data
+			*gitCommit = *fresh
+			return nil
+		}
+
+		// Check if it's a conflict error
+		if errors.IsConflict(err) {
+			log.V(1).Info("Status update conflict, retrying", "attempt", i+1, "maxRetries", maxRetries)
+			continue
+		}
+
+		// Other error - return immediately
+		return err
+	}
+
+	log.Error(fmt.Errorf("max retries exceeded"), "Failed to update status after multiple attempts")
+	return fmt.Errorf("failed to update status after %d retries due to conflicts", maxRetries)
 }
 
 func (r *GitCommitReconciler) fetchResource(ctx context.Context, resourceRef gitv1.ResourceRef, namespace string) (*unstructured.Unstructured, error) {
@@ -541,6 +600,15 @@ func (r *GitCommitReconciler) checkSingleRestAPICondition(ctx context.Context, g
 
 	// Set name in status
 	status.Name = restAPI.Name
+
+	// Circuit breaker: limit maximum retry attempts to prevent infinite loops
+	const maxRetries = 10
+	if status.CallCount >= maxRetries {
+		status.LastError = fmt.Sprintf("Circuit breaker activated: maximum retries (%d) exceeded", maxRetries)
+		log.Error(fmt.Errorf("circuit breaker activated"), "REST API retry limit exceeded",
+			"name", restAPI.Name, "callCount", status.CallCount, "maxRetries", maxRetries)
+		return false, nil // Return false but no error to stop retrying
+	}
 
 	// Set defaults
 	method := "GET"
