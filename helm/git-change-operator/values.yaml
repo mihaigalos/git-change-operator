@@ -113,6 +113,32 @@ metrics:
     labels: {}
     annotations: {}
 
+# Ingress for metrics endpoint
+ingress:
+  # Enable ingress for metrics endpoint
+  enabled: false
+  # Ingress class name
+  className: ""
+  # Ingress annotations
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  # Ingress hosts configuration
+  hosts:
+    - host: git-change-operator-metrics.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service:
+            name: metrics
+            port: 8080
+  # TLS configuration
+  tls: []
+  #  - secretName: git-change-operator-metrics-tls
+  #    hosts:
+  #      - git-change-operator-metrics.localtru
+
 # Operator configuration
 operator:
   # Log level (debug, info, warn, error)

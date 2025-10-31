@@ -63,6 +63,9 @@ The following table lists the configurable parameters and their default values:
 | `rbac.create` | Create RBAC resources | `true` |
 | `metrics.enabled` | Enable metrics endpoint | `true` |
 | `metrics.serviceMonitor.enabled` | Create ServiceMonitor for Prometheus | `false` |
+| `ingress.enabled` | Enable ingress for metrics endpoint | `false` |
+| `ingress.className` | Ingress class name | `""` |
+| `ingress.hosts[0].host` | Hostname for the ingress | `git-change-operator-metrics.local` |
 | `operator.logLevel` | Log level (debug, info, warn, error) | `info` |
 | `operator.leaderElect` | Enable leader election | `true` |
 
@@ -134,11 +137,36 @@ stringData:
 
 ## Monitoring
 
+### Prometheus ServiceMonitor
+
 If you have Prometheus Operator installed, you can enable ServiceMonitor:
 
 ```bash
 helm upgrade git-change-operator helm/git-change-operator \
   --set metrics.serviceMonitor.enabled=true
+```
+
+### Ingress for Metrics
+
+To expose the metrics endpoint via ingress (useful for external Prometheus instances):
+
+```bash
+helm upgrade git-change-operator helm/git-change-operator \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host=metrics.git-change-operator.example.com \
+  --set ingress.className=nginx
+```
+
+For HTTPS with cert-manager:
+
+```bash
+helm upgrade git-change-operator helm/git-change-operator \
+  --set ingress.enabled=true \
+  --set ingress.hosts[0].host=metrics.git-change-operator.example.com \
+  --set ingress.className=nginx \
+  --set ingress.annotations."cert-manager\.io/cluster-issuer"=letsencrypt-prod \
+  --set ingress.tls[0].secretName=git-change-operator-metrics-tls \
+  --set ingress.tls[0].hosts[0]=metrics.git-change-operator.example.com
 ```
 
 ## Uninstallation
