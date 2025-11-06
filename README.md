@@ -92,8 +92,7 @@ graph TB
     
     %% Operator reads from K8s Cluster
     B -->|reads data from| D["☸️ K8s Cluster"]
-    D -->|contains| E["📦 ConfigMaps"]
-    D -->|contains| F["🔐 Secrets"] 
+    D -->|contains| E["📦 Resources"]
     
     %% Operator authenticates and writes to Git
     B -->|clones/pulls| C["📚 Git Repository"]
