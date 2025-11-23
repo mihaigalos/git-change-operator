@@ -40,7 +40,7 @@ jobs:
     - name: Install controller-gen
       run: go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 
-    - name: Run make test
+    - name: Run unit tests
       run: make test
 
     - name: Run make fmt check
@@ -114,20 +114,8 @@ jobs:
     - name: Install controller-gen
       run: go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 
-    - name: Setup test environment for Linux AMD64
-      run: |
-        # Install setup-envtest tool
-        go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-        
-        # Use setup-envtest to download and set up the binaries
-        export KUBEBUILDER_ASSETS=$(setup-envtest use --arch amd64 --os linux -p path)
-        echo "KUBEBUILDER_ASSETS=$KUBEBUILDER_ASSETS" >> $GITHUB_ENV
-        echo "Using KUBEBUILDER_ASSETS: $KUBEBUILDER_ASSETS"
-
     - name: Run integration tests
-      run: |
-        # Run the integration tests with the environment variable set
-        go test -v ./test/suite_test.go ./test/gitcommit_controller_test.go ./test/pullrequest_controller_test.go
+      run: make test-integration
 
   helm-lint:
     name: Helm Lint
