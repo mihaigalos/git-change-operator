@@ -53,12 +53,19 @@ RUN mkdir -p /workspace/helm-resolved && \
     done
 
 #----------------------------------------------------------------------------------------------
-FROM alpine:3.18 AS alpine-tools
+FROM alpine:3.18
 
-# Accept build args for package repositories and certificate
+# Accept build args for package repositories
 ARG APK_MAIN_REPO
 ARG APK_COMMUNITY_REPO
+
+# Accept build arg for corporate certificate content (passed from builder stage)
 ARG CORPORATE_CA_CERT
+
+# Upstream Ref
+ARG GIT_REFERENCE
+LABEL git-ref="$GIT_REFERENCE" \
+      org.opencontainers.image.source="$GIT_REFERENCE"
 
 # Debug: Show what repos are configured
 RUN echo "APK_MAIN_REPO=$APK_MAIN_REPO" && \
@@ -87,21 +94,14 @@ RUN if [ -n "$CORPORATE_CA_CERT" ]; then \
     fi
 
 # Now install ca-certificates and other packages
-RUN apk --no-cache add ca-certificates curl bash helm \
+RUN apk --no-cache add ca-certificates \
+    && echo "curl bash helm" \
     && if [ -n "$CORPORATE_CA_CERT" ]; then \
         update-ca-certificates && \
         echo "Corporate certificate properly registered with update-ca-certificates"; \
     fi
 
-# Use distroless as minimal base image
-# https://github.com/GoogleContainerTools/distroless
-FROM gcr.io/distroless/static:nonroot AS stage-1
-
-# Upstream Ref
-ARG GIT_REFERENCE
-LABEL git-ref="$GIT_REFERENCE" \
-      org.opencontainers.image.source="$GIT_REFERENCE"
-
+RUN addgroup -S user && adduser -S user -G user
 WORKDIR /home/user
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
