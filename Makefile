@@ -79,15 +79,18 @@ test-all: setup-test-env fmt vet ## Run all tests (unit + integration)
 # Copy corporate-config.env.example to corporate-config.env and customize
 # Then run: source corporate-config.env
 docker-build: ## Build docker image
-	@if [ -f corporate-config.env ]; then \
+	@set -a; \
+	if [ -f corporate-config.env ]; then \
 		echo "Found corporate-config.env, sourcing it..."; \
-		source corporate-config.env; \
+		. ./corporate-config.env; \
 	else \
 		echo "corporate-config.env not found, proceeding without it"; \
-	fi
-	@if [ -n "${SSL_CERT_FILE}" ] && [ -f "${SSL_CERT_FILE}" ]; then \
-		echo "Reading corporate certificate content from ${SSL_CERT_FILE}..."; \
-		CERT_CONTENT=$$(cat "${SSL_CERT_FILE}"); \
+	fi; \
+	set +a; \
+	SSL_CERT_PATH=$$(eval echo "$${SSL_CERT_FILE}"); \
+	if [ -n "$${SSL_CERT_PATH}" ] && [ -f "$${SSL_CERT_PATH}" ]; then \
+		echo "Reading corporate certificate content from $${SSL_CERT_PATH}..."; \
+		CERT_CONTENT=$$(cat "$${SSL_CERT_PATH}"); \
 	else \
 		echo "No corporate certificate configured or found, using system certificates"; \
 		CERT_CONTENT=""; \
@@ -105,8 +108,8 @@ docker-build: ## Build docker image
 		$(if $(GOSUMDB_ARG),--build-arg GOSUMDB="$(GOSUMDB_ARG)") \
 		$(if $(GONOPROXY_ARG),--build-arg GONOPROXY="$(GONOPROXY_ARG)") \
 		$(if $(GONOSUMDB_ARG),--build-arg GONOSUMDB="$(GONOSUMDB_ARG)") \
-		$(if $(APK_MAIN_REPO_ARG),--build-arg APK_MAIN_REPO="$(APK_MAIN_REPO_ARG)") \
-		$(if $(APK_COMMUNITY_REPO_ARG),--build-arg APK_COMMUNITY_REPO="$(APK_COMMUNITY_REPO_ARG)") \
+		--build-arg APK_MAIN_REPO="$${APK_MAIN_REPO}" \
+		--build-arg APK_COMMUNITY_REPO="$${APK_COMMUNITY_REPO}" \
 		--build-arg CORPORATE_CA_CERT="$$CERT_CONTENT" \
 		--build-arg GIT_REFERENCE="$$GIT_REFERENCE" \
 		-t ${IMG} -t ${IMG_LATEST} .
