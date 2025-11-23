@@ -6,7 +6,7 @@ APP_VERSION := $(shell grep '^appVersion:' helm/git-change-operator/Chart.yaml |
 IMG ?= ghcr.io/mihaigalos/git-change-operator:$(APP_VERSION)-$(CHART_VERSION)
 IMG_LATEST ?= ghcr.io/mihaigalos/git-change-operator:latest
 
-KUBEBUILDER_ASSETS ?= $(shell pwd)/bin/kubebuilder/k8s/1.34.1-darwin-arm64
+# Test variables - dynamically set by setup-envtest
 SETUP_ENVTEST_INDEX ?= https://raw.githubusercontent.com/kubernetes-sigs/controller-tools/HEAD/envtest-releases.yaml
 
 # Go proxy configuration (can be overridden via environment variables)
@@ -63,12 +63,15 @@ setup-test-env: ## Set up test environment (install tools and kubebuilder binari
 	mkdir -p ./bin/kubebuilder
 	@echo "Downloading kubebuilder binaries using proxy..."
 	setup-envtest use --index "$(SETUP_ENVTEST_INDEX)" --bin-dir ./bin/kubebuilder
-	@echo "Setup complete! KUBEBUILDER_ASSETS will be set to: $(KUBEBUILDER_ASSETS)"
 
 test-integration: setup-test-env fmt vet ## Run integration tests (requires kubebuilder setup)
+	$(eval KUBEBUILDER_ASSETS := $(shell setup-envtest use -p path --bin-dir $(shell pwd)/bin/kubebuilder))
+	@echo "Using KUBEBUILDER_ASSETS: $(KUBEBUILDER_ASSETS)"
 	KUBEBUILDER_ASSETS=$(KUBEBUILDER_ASSETS) go test -v ./test/integration/...
 
 test-all: setup-test-env fmt vet ## Run all tests (unit + integration)
+	$(eval KUBEBUILDER_ASSETS := $(shell setup-envtest use -p path --bin-dir $(shell pwd)/bin/kubebuilder))
+	@echo "Using KUBEBUILDER_ASSETS: $(KUBEBUILDER_ASSETS)"
 	@echo "Running unit tests..."
 	go test -v ./test/unit/...
 	@echo "Running integration tests..."
