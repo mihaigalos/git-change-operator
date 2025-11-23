@@ -773,23 +773,137 @@ template: |
 
 ## Lifecycle Management
 
-### Reconciliation
+### Scheduled Commits
 
-Control when and how GitCommit resources are reconciled:
+Schedule recurring commits using cron expressions:
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: scheduled-backup
+spec:
+  repository: "https://github.com/myorg/backups.git"
+  branch: "main"
+  commitMessage: "Scheduled backup - {{ .timestamp }}"
+  
+  # Cron schedule for recurring commits
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  
+  # Suspend execution temporarily
+  suspend: false
+  
+  # Keep history of last 10 executions (default)
+  maxExecutionHistory: 10
+  
+  authSecretRef: git-credentials
+  resourceRefs:
+  - apiVersion: v1
+    kind: ConfigMap
+    name: app-config
+    namespace: production
+    strategy:
+      type: dump
+      path: "backups/{{ .metadata.namespace }}/{{ .metadata.name }}.yaml"
+```
+
+#### Schedule Format
+
+The schedule field supports standard cron syntax and special descriptors:
+
+**Cron Syntax**: `minute hour day month weekday`
+
+```yaml
+# Examples
+schedule: "0 2 * * *"        # Daily at 2 AM
+schedule: "*/15 * * * *"     # Every 15 minutes
+schedule: "0 */6 * * *"      # Every 6 hours
+schedule: "0 9 * * MON"      # Every Monday at 9 AM
+schedule: "0 0 1 * *"        # First day of month at midnight
+```
+
+**Special Descriptors**:
+
+```yaml
+schedule: "@hourly"   # Every hour
+schedule: "@daily"    # Every day at midnight
+schedule: "@weekly"   # Every Sunday at midnight
+schedule: "@monthly"  # First day of month at midnight
+```
+
+#### Suspend Scheduled Execution
+
+Temporarily pause scheduled commits without deleting the resource:
 
 ```yaml
 spec:
-  # Reconcile every 5 minutes
-  reconcileInterval: "300s"
+  schedule: "0 2 * * *"
+  suspend: true  # Pauses execution, will resume when set to false
+```
+
+#### Execution History
+
+View the history of scheduled executions:
+
+```bash
+kubectl get gitcommit scheduled-backup -o yaml
+```
+
+```yaml
+status:
+  phase: "Committed"
+  lastScheduledTime: "2024-01-15T02:00:00Z"
+  nextScheduledTime: "2024-01-16T02:00:00Z"
+  executionHistory:
+  - executionTime: "2024-01-15T02:00:00Z"
+    commitSHA: "abc123def456"
+    phase: "Committed"
+    message: "Git commit completed successfully"
+  - executionTime: "2024-01-14T02:00:00Z"
+    commitSHA: "def456abc123"
+    phase: "Committed"
+    message: "Git commit completed successfully"
+  - executionTime: "2024-01-13T02:00:00Z"
+    commitSHA: "789xyz456abc"
+    phase: "Committed"
+    message: "Git commit completed successfully"
+```
+
+#### Scheduled Commits with TTL
+
+When both `schedule` and `ttlMinutes` are configured:
+- The schedule takes precedence
+- TTL is **ignored** for resource deletion
+- The resource persists and continues executing on schedule
+- Use this for long-running periodic backups
+
+```yaml
+spec:
+  schedule: "@daily"
+  ttlMinutes: 60  # Ignored when schedule is set
+```
+
+### One-Time Commits with TTL
+
+For one-time commits that auto-delete after completion:
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitCommit
+metadata:
+  name: temporary-commit
+spec:
+  repository: "https://github.com/myorg/config.git"
+  branch: "main"
+  commitMessage: "Temporary commit"
+  authSecretRef: git-credentials
   
-  # Suspend reconciliation
-  suspend: true
+  # Delete resource 60 minutes after creation
+  ttlMinutes: 60
   
-  # One-time execution
-  schedule: "once"
-  
-  # Cron-based execution
-  schedule: "0 */6 * * *"  # Every 6 hours
+  files:
+  - path: "temp/data.txt"
+    content: "Temporary data"
 ```
 
 ### Conditions and Status
@@ -800,18 +914,26 @@ Monitor GitCommit resource status:
 # Check GitCommit status
 kubectl get gitcommit mycommit -o yaml
 
-# Example status
+# Example status for one-time commit
 status:
-  phase: "Completed"  # Pending, Running, Completed, Failed
-  conditions:
-  - type: "Ready"
-    status: "True"
-    lastTransitionTime: "2024-01-15T10:30:00Z"
-    reason: "CommitSuccessful"
-    message: "Successfully committed to repository"
-  lastCommitSHA: "abc123def456"
-  lastCommitTime: "2024-01-15T10:30:00Z"
-  observedGeneration: 1
+  phase: "Committed"  # Pending, Running, Committed, Failed
+  message: "Git commit completed successfully"
+  commitSHA: "abc123def456"
+  lastSync: "2024-01-15T10:30:00Z"
+
+# Example status for scheduled commit
+status:
+  phase: "Committed"
+  message: "Git commit completed successfully"
+  commitSHA: "abc123def456"
+  lastSync: "2024-01-15T02:00:00Z"
+  lastScheduledTime: "2024-01-15T02:00:00Z"
+  nextScheduledTime: "2024-01-16T02:00:00Z"
+  executionHistory:
+  - executionTime: "2024-01-15T02:00:00Z"
+    commitSHA: "abc123def456"
+    phase: "Committed"
+    message: "Git commit completed successfully"
 ```
 
 ### Events

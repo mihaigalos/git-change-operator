@@ -21,6 +21,43 @@ type PullRequestSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=43200
 	TTLMinutes *int `json:"ttlMinutes,omitempty"`
+
+	// Schedule defines a cron expression for recurring pull requests
+	// Examples: "0 2 * * *" (daily at 2 AM), "@hourly", "@daily", "@weekly"
+	// When set, the resource will not be deleted and PRs will be created on schedule
+	// +kubebuilder:validation:Pattern="^(@(annually|yearly|monthly|weekly|daily|hourly))|(@every (\\d+(ns|us|µs|ms|s|m|h))+)|(((\\d+,)+\\d+|(\\d+([/-])\\d+)|\\d+|\\*) +){4}((\\d+,)+\\d+|(\\d+([/-])\\d+)|\\d+|\\*)$"
+	// +optional
+	Schedule string `json:"schedule,omitempty"`
+
+	// Suspend will suspend execution when set to true. Execution will resume when set to false.
+	// +optional
+	Suspend bool `json:"suspend,omitempty"`
+
+	// MaxExecutionHistory specifies how many execution records to keep in status
+	// Defaults to 10 if not specified
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:default=10
+	// +optional
+	MaxExecutionHistory *int `json:"maxExecutionHistory,omitempty"`
+}
+
+// PRExecutionRecord tracks a single execution of a scheduled PullRequest
+type PRExecutionRecord struct {
+	// ExecutionTime is when the PR was executed
+	ExecutionTime metav1.Time `json:"executionTime"`
+
+	// PullRequestNumber is the resulting PR number
+	PullRequestNumber int `json:"pullRequestNumber,omitempty"`
+
+	// PullRequestURL is the URL of the created PR
+	PullRequestURL string `json:"pullRequestURL,omitempty"`
+
+	// Phase indicates the result of this execution
+	Phase PullRequestPhase `json:"phase"`
+
+	// Message contains any error or status message
+	Message string `json:"message,omitempty"`
 }
 
 type PullRequestStatus struct {
@@ -30,6 +67,15 @@ type PullRequestStatus struct {
 	Message           string           `json:"message,omitempty"`
 	LastSync          *metav1.Time     `json:"lastSync,omitempty"`
 	RestAPIStatuses   []RestAPIStatus  `json:"restAPIStatuses,omitempty"`
+
+	// LastScheduledTime is when the resource was last scheduled for execution
+	LastScheduledTime *metav1.Time `json:"lastScheduledTime,omitempty"`
+
+	// NextScheduledTime is when the resource will be executed next
+	NextScheduledTime *metav1.Time `json:"nextScheduledTime,omitempty"`
+
+	// ExecutionHistory keeps track of the last N executions (configurable via spec.maxExecutionHistory)
+	ExecutionHistory []PRExecutionRecord `json:"executionHistory,omitempty"`
 }
 
 type PullRequestPhase string
