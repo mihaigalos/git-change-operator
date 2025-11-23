@@ -916,7 +916,7 @@ func (r *PullRequestReconciler) handleScheduledPullRequest(ctx context.Context, 
 	}
 
 	now := time.Now()
-	
+
 	// Calculate next scheduled time
 	nextTime := schedule.Next(now)
 	nextTimeMeta := metav1.NewTime(nextTime)
@@ -945,13 +945,13 @@ func (r *PullRequestReconciler) handleScheduledPullRequest(ctx context.Context, 
 				return ctrl.Result{}, err
 			}
 		}
-		
+
 		// Calculate how long to wait until next execution
 		waitDuration := time.Until(nextTime)
 		if waitDuration < time.Minute {
 			waitDuration = time.Minute
 		}
-		
+
 		log.Info("Waiting for next scheduled execution", "nextTime", nextTime, "waitDuration", waitDuration)
 		return ctrl.Result{RequeueAfter: waitDuration}, nil
 	}
@@ -962,7 +962,7 @@ func (r *PullRequestReconciler) handleScheduledPullRequest(ctx context.Context, 
 
 	// Execute the pull request creation
 	log.Info("Executing scheduled PullRequest")
-	
+
 	// Update status to Running
 	if err := r.updateScheduleStatus(ctx, pullRequest, gitv1.PullRequestPhaseRunning, "Processing scheduled pull request"); err != nil {
 		return ctrl.Result{}, err
@@ -1030,7 +1030,7 @@ func (r *PullRequestReconciler) handleScheduledPullRequest(ctx context.Context, 
 	if waitDuration < time.Minute {
 		waitDuration = time.Minute
 	}
-	
+
 	log.Info("Scheduled execution complete, waiting for next run", "nextTime", nextTime, "waitDuration", waitDuration)
 	return ctrl.Result{RequeueAfter: waitDuration}, nil
 }
