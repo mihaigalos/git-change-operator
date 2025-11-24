@@ -49,6 +49,10 @@ zscaler.pem
 
 # Corporate configuration (local environment specific)
 
+# Test SSH private keys (never commit private keys!)
+test/resources/id_rsa_*
+!test/resources/id_rsa_*.pub
+
 # Documentation
 site/
 docs/.venv/

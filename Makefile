@@ -63,6 +63,8 @@ setup-test-env: ## Set up test environment (install tools and kubebuilder binari
 	mkdir -p ./bin/kubebuilder
 	@echo "Downloading kubebuilder binaries using proxy..."
 	setup-envtest use --index "$(SETUP_ENVTEST_INDEX)" --bin-dir ./bin/kubebuilder
+	@echo "Generating test SSH key pair if not present..."
+	@test -f test/resources/id_rsa_4096 || ssh-keygen -t rsa -b 4096 -f test/resources/id_rsa_4096 -N "" -C "test-key-for-git-change-operator"
 
 test-integration: setup-test-env fmt vet ## Run integration tests (requires kubebuilder setup)
 	$(eval KUBEBUILDER_ASSETS := $(shell setup-envtest use -p path --bin-dir $(shell pwd)/bin/kubebuilder))

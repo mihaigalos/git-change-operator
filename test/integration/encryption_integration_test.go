@@ -296,7 +296,7 @@ func TestSSHKeySupport(t *testing.T) {
 	content := []byte("SSH encrypted message")
 
 	// Read the public key from test resources
-	publicKeyBytes, err := os.ReadFile("resources/id_rsa_4096.pub")
+	publicKeyBytes, err := os.ReadFile("../resources/id_rsa_4096.pub")
 	if err != nil {
 		t.Fatalf("Failed to read public key: %v", err)
 	}
@@ -328,7 +328,7 @@ func TestSSHKeySupport(t *testing.T) {
 	}
 
 	// Read private key
-	privateKeyBytes, err := os.ReadFile("resources/id_rsa_4096")
+	privateKeyBytes, err := os.ReadFile("../resources/id_rsa_4096")
 	if err != nil {
 		t.Fatalf("Failed to read private key: %v", err)
 	}
