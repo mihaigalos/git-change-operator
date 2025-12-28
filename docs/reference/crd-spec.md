@@ -30,9 +30,14 @@ spec:
   resourceReferences: []ResourceReferenceSpec  # optional - Kubernetes resource references
   writeMode: string             # optional - "overwrite" (default) or "append"
   encryption: EncryptionSpec   # optional - File encryption configuration
+  schedule: string             # optional - Cron schedule for recurring commits
+  suspend: boolean             # optional - Suspend scheduled execution
+  maxExecutionHistory: int     # optional - Number of execution records to keep (default: 10)
 status:
   conditions: []Condition      # Status conditions
   lastCommitHash: string      # Last successful commit SHA
+  nextScheduledTime: string   # Next scheduled execution time (RFC3339)
+  lastScheduledTime: string   # Last scheduled execution time (RFC3339)
 ```
 
 ### Complete Example
@@ -344,6 +349,50 @@ encryption:
 |-------|-------------|
 | `overwrite` | Replace file content completely |
 | `append` | Add content to end of existing file |
+
+#### spec.schedule
+| Field | Type | Required | Description | Default |
+|-------|------|----------|-------------|---------|
+| `schedule` | string | ✗ | Cron expression for recurring commits | - |
+
+Supports standard cron syntax (5 fields) and special descriptors:
+
+**Cron Syntax:** `minute hour day month weekday`
+
+```yaml
+schedule: "0 2 * * *"        # Daily at 2 AM
+schedule: "*/15 * * * *"     # Every 15 minutes
+schedule: "0 */6 * * *"      # Every 6 hours
+schedule: "0 9 * * MON"      # Every Monday at 9 AM
+```
+
+**Special Descriptors:**
+```yaml
+schedule: "@hourly"   # Every hour
+schedule: "@daily"    # Every day at midnight
+schedule: "@weekly"   # Every Sunday at midnight
+schedule: "@monthly"  # First day of month at midnight
+```
+
+**Example:**
+```yaml
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  suspend: false
+  maxExecutionHistory: 10
+```
+
+#### spec.suspend
+| Field | Type | Required | Description | Default |
+|-------|------|----------|-------------|---------|
+| `suspend` | boolean | ✗ | Suspend scheduled execution | `false` |
+
+When set to `true`, prevents scheduled executions. Set to `false` to resume.
+
+#### spec.maxExecutionHistory
+| Field | Type | Required | Description | Default | Range |
+|-------|------|----------|-------------|---------|-------|
+| `maxExecutionHistory` | int | ✗ | Number of execution records to keep | `10` | 1-100 |
 
 ## PullRequest Resource
 
