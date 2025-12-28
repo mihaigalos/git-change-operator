@@ -37,7 +37,10 @@ jobs:
         go-version: '1.22'
     
     - name: Install just
-      uses: extractions/setup-just@v2
+      run: |
+        curl -L https://github.com/casey/just/releases/download/1.45.0/just-1.45.0-x86_64-unknown-linux-musl.tar.gz | tar xz
+        sudo mv just /usr/local/bin/
+        just --version
     
     - name: Install controller-gen and other tools
       run: |
