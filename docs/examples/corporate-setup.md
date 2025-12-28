@@ -28,7 +28,7 @@ The Git Change Operator supports corporate environments through external configu
 3. **Source the configuration before building:**
    ```bash
    source corporate-config.env
-   make build
+   just build
    ```
 
 ## Configuration Files
@@ -58,11 +58,11 @@ export CURL_CA_BUNDLE="/path/to/corporate-ca.pem"
 
 ### Go Builds
 
-The Makefile automatically uses environment variables when set:
+The Justfile automatically uses environment variables when set:
 
 ```bash
 source corporate-config.env
-make build
+just build
 ```
 
 ### Docker Builds
@@ -71,7 +71,7 @@ Use the Makefile target which automatically handles corporate configuration:
 
 ```bash
 source corporate-config.env
-make docker-build
+just docker-build
 ```
 
 ### Testing
@@ -80,7 +80,7 @@ For integration tests in corporate environments:
 
 ```bash
 source corporate-config.env
-make test-integration
+just test-integration
 ```
 
 ## Environment Variables Reference
@@ -162,5 +162,5 @@ Example GitHub Actions (for internal repositories):
     echo "GOSUMDB=off" >> $GITHUB_ENV
     
 - name: Build with Corporate Config
-  run: make build
+  run: just build
 ```

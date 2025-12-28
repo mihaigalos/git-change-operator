@@ -16,6 +16,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/robfig/cron/v3"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -61,7 +62,17 @@ func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	// Check if the resource has expired due to TTL
+	log.Info("DEBUG: Reconciling GitCommit", "name", gitCommit.Name, "namespace", gitCommit.Namespace, "schedule", gitCommit.Spec.Schedule, "scheduleEmpty", gitCommit.Spec.Schedule == "")
+
+	// Check if scheduling is configured
+	if gitCommit.Spec.Schedule != "" {
+		log.Info("DEBUG: Taking scheduled path")
+		return r.handleScheduledGitCommit(ctx, &gitCommit)
+	}
+
+	log.Info("DEBUG: Taking non-scheduled path")
+
+	// Check if the resource has expired due to TTL (only for non-scheduled resources)
 	expired, err := r.checkTTLExpired(ctx, &gitCommit)
 	if err != nil {
 		log.Error(err, "failed to check TTL expiration")
@@ -889,6 +900,325 @@ func (r *GitCommitReconciler) buildFileContent(file *gitv1.File, statuses []gitv
 	// Join results with delimiter
 	combinedContent := strings.Join(results, delimiter)
 	return []byte(combinedContent)
+}
+
+// handleScheduledGitCommit processes GitCommit resources with a schedule configured
+func (r *GitCommitReconciler) handleScheduledGitCommit(ctx context.Context, gitCommit *gitv1.GitCommit) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+
+	// Check if execution is suspended
+	if gitCommit.Spec.Suspend {
+		log.Info("GitCommit execution is suspended")
+		if err := r.updateScheduleStatus(ctx, gitCommit, gitv1.GitCommitPhasePending, "Execution suspended"); err != nil {
+			return ctrl.Result{}, err
+		}
+		// Still requeue to check if suspend flag changes
+		return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
+	}
+
+	// Parse cron schedule
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+	schedule, err := parser.Parse(gitCommit.Spec.Schedule)
+	if err != nil {
+		log.Error(err, "failed to parse cron schedule", "schedule", gitCommit.Spec.Schedule)
+		if err := r.updateScheduleStatus(ctx, gitCommit, gitv1.GitCommitPhaseFailed, fmt.Sprintf("Invalid cron schedule: %v", err)); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, err
+	}
+
+	log.Info("DEBUG: Cron schedule parsed successfully", "schedule", gitCommit.Spec.Schedule)
+
+	now := time.Now()
+
+	// Calculate next scheduled time
+	nextTime := schedule.Next(now)
+	nextTimeMeta := metav1.NewTime(nextTime)
+	log.Info("DEBUG: Calculated next execution time", "now", now, "nextTime", nextTime, "schedule", gitCommit.Spec.Schedule)
+
+	// Check if it's time to execute
+	shouldExecute := false
+	if gitCommit.Status.LastScheduledTime == nil {
+		// First execution - execute immediately
+		shouldExecute = true
+		log.Info("First scheduled execution, running immediately")
+	} else {
+		// Check if we've passed the next scheduled time
+		if gitCommit.Status.NextScheduledTime != nil {
+			scheduledTime := gitCommit.Status.NextScheduledTime.Time
+			if now.After(scheduledTime) || now.Equal(scheduledTime) {
+				shouldExecute = true
+				log.Info("Scheduled time reached, executing", "scheduledTime", scheduledTime)
+			}
+		}
+	}
+
+	if !shouldExecute {
+		// Not time to execute yet, update next scheduled time and requeue
+		if gitCommit.Status.NextScheduledTime == nil || !gitCommit.Status.NextScheduledTime.Equal(&nextTimeMeta) {
+			if err := r.updateNextScheduledTime(ctx, gitCommit, &nextTimeMeta); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		// Calculate how long to wait until next execution
+		waitDuration := time.Until(nextTime)
+		if waitDuration < time.Minute {
+			waitDuration = time.Minute
+		}
+
+		log.Info("Waiting for next scheduled execution", "nextTime", nextTime, "waitDuration", waitDuration)
+		return ctrl.Result{RequeueAfter: waitDuration}, nil
+	}
+
+	// Time to execute - update last scheduled time
+	nowMeta := metav1.NewTime(now)
+	gitCommit.Status.LastScheduledTime = &nowMeta
+
+	// Execute the git commit
+	log.Info("Executing scheduled GitCommit")
+
+	// Update status to Running
+	if err := r.updateScheduleStatus(ctx, gitCommit, gitv1.GitCommitPhaseRunning, "Processing scheduled git commit"); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Check REST API conditions if configured
+	if len(gitCommit.Spec.RestAPIs) > 0 {
+		// Circuit breaker: check if any REST API has exceeded retry limits
+		for _, status := range gitCommit.Status.RestAPIStatuses {
+			if status.CallCount >= 10 {
+				log.Error(fmt.Errorf("REST API retry limit exceeded"), "Failing scheduled execution due to circuit breaker",
+					"restAPI", status.Name, "callCount", status.CallCount)
+				// Calculate next execution time
+				nextTime := schedule.Next(now)
+				nextTimeMeta := metav1.NewTime(nextTime)
+				r.recordExecution(ctx, gitCommit, "", gitv1.GitCommitPhaseFailed,
+					fmt.Sprintf("REST API '%s' exceeded maximum retry limit (%d calls)", status.Name, status.CallCount), &nextTimeMeta)
+				return ctrl.Result{RequeueAfter: time.Until(nextTime)}, nil
+			}
+		}
+
+		allConditionsMet, err := r.checkRestAPIConditions(ctx, gitCommit)
+		if err != nil {
+			log.Error(err, "failed to check REST API conditions")
+			// Calculate next execution time
+			nextTime := schedule.Next(now)
+			nextTimeMeta := metav1.NewTime(nextTime)
+			r.recordExecution(ctx, gitCommit, "", gitv1.GitCommitPhaseFailed, fmt.Sprintf("REST API check failed: %v", err), &nextTimeMeta)
+			return ctrl.Result{RequeueAfter: time.Until(nextTime)}, nil
+		}
+
+		if !allConditionsMet {
+			log.Info("One or more REST API conditions not met, skipping this scheduled execution")
+			// Calculate next execution time
+			nextTime := schedule.Next(now)
+			nextTimeMeta := metav1.NewTime(nextTime)
+			r.recordExecution(ctx, gitCommit, "", gitv1.GitCommitPhasePending, "REST API conditions not met", &nextTimeMeta)
+			return ctrl.Result{RequeueAfter: time.Until(nextTime)}, nil
+		}
+
+		log.Info("All REST API conditions met, proceeding with scheduled git commit")
+	}
+
+	auth, err := r.getAuthFromSecret(ctx, gitCommit.Namespace, gitCommit.Spec.AuthSecretRef, gitCommit.Spec.AuthSecretKey)
+	if err != nil {
+		log.Error(err, "failed to get authentication")
+		// Calculate next execution time
+		nextTime := schedule.Next(now)
+		nextTimeMeta := metav1.NewTime(nextTime)
+		r.recordExecution(ctx, gitCommit, "", gitv1.GitCommitPhaseFailed, fmt.Sprintf("Authentication failed: %v", err), &nextTimeMeta)
+		return ctrl.Result{RequeueAfter: time.Until(nextTime)}, nil
+	}
+
+	commitSHA, err := r.performGitCommit(ctx, gitCommit, auth)
+	if err != nil {
+		log.Error(err, "failed to perform scheduled git commit")
+		// Calculate next execution time
+		nextTime := schedule.Next(now)
+		nextTimeMeta := metav1.NewTime(nextTime)
+		r.recordExecution(ctx, gitCommit, "", gitv1.GitCommitPhaseFailed, fmt.Sprintf("Git commit failed: %v", err), &nextTimeMeta)
+		return ctrl.Result{RequeueAfter: time.Until(nextTime)}, nil
+	}
+
+	// Record successful execution
+	log.Info("Scheduled git commit completed successfully", "commit", commitSHA)
+
+	// Calculate next execution time FIRST
+	nextTime = schedule.Next(now)
+	nextTimeMeta = metav1.NewTime(nextTime)
+	log.Info("DEBUG: About to record execution", "nextTime", nextTime, "nextTimeMeta", nextTimeMeta)
+
+	// Update nextScheduledTime BEFORE recordExecution
+	if err := r.updateNextScheduledTime(ctx, gitCommit, &nextTimeMeta); err != nil {
+		log.Error(err, "failed to update next scheduled time")
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+
+	// Now record the execution (without nextScheduledTime since it's already set)
+	if err := r.recordExecution(ctx, gitCommit, commitSHA, gitv1.GitCommitPhaseCommitted, "Git commit completed successfully", nil); err != nil {
+		log.Error(err, "failed to record execution")
+		return ctrl.Result{RequeueAfter: time.Minute}, err
+	}
+	log.Info("DEBUG: recordExecution completed successfully", "gitCommit.Status.NextScheduledTime", gitCommit.Status.NextScheduledTime)
+
+	// Requeue for next execution
+	waitDuration := time.Until(nextTime)
+	if waitDuration < time.Minute {
+		waitDuration = time.Minute
+	}
+
+	log.Info("Scheduled execution complete, waiting for next run", "nextTime", nextTime, "waitDuration", waitDuration)
+	return ctrl.Result{RequeueAfter: waitDuration}, nil
+}
+
+// recordExecution adds an execution record to the history and maintains the max history limit
+func (r *GitCommitReconciler) recordExecution(ctx context.Context, gitCommit *gitv1.GitCommit, commitSHA string, phase gitv1.GitCommitPhase, message string, nextScheduledTime *metav1.Time) error {
+	log := log.FromContext(ctx)
+
+	// Retry logic to handle optimistic concurrency conflicts
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		// Get fresh copy of the resource
+		fresh := &gitv1.GitCommit{}
+		if err := r.Get(ctx, client.ObjectKeyFromObject(gitCommit), fresh); err != nil {
+			return err
+		}
+
+		// Create new execution record
+		now := metav1.Now()
+		record := gitv1.ExecutionRecord{
+			ExecutionTime: now,
+			CommitSHA:     commitSHA,
+			Phase:         phase,
+			Message:       message,
+		}
+
+		// Add to execution history
+		fresh.Status.ExecutionHistory = append([]gitv1.ExecutionRecord{record}, fresh.Status.ExecutionHistory...)
+
+		// Maintain max history limit
+		maxHistory := 10 // default
+		if gitCommit.Spec.MaxExecutionHistory != nil {
+			maxHistory = *gitCommit.Spec.MaxExecutionHistory
+		}
+		if len(fresh.Status.ExecutionHistory) > maxHistory {
+			fresh.Status.ExecutionHistory = fresh.Status.ExecutionHistory[:maxHistory]
+		}
+
+		// Update current status fields
+		fresh.Status.Phase = phase
+		fresh.Status.Message = message
+		fresh.Status.CommitSHA = commitSHA
+		fresh.Status.LastSync = &now
+		fresh.Status.LastScheduledTime = gitCommit.Status.LastScheduledTime
+		// Only update NextScheduledTime if provided (otherwise preserve what's in fresh)
+		if nextScheduledTime != nil {
+			fresh.Status.NextScheduledTime = nextScheduledTime
+		}
+
+		log.Info("DEBUG: recordExecution setting status", "nextScheduledTime", fresh.Status.NextScheduledTime, "lastScheduledTime", gitCommit.Status.LastScheduledTime)
+
+		// Attempt to update status
+		if err := r.Status().Update(ctx, fresh); err != nil {
+			if errors.IsConflict(err) && i < maxRetries-1 {
+				log.V(1).Info("Status update conflict, retrying", "attempt", i+1)
+				time.Sleep(time.Millisecond * 100)
+				continue
+			}
+			return err
+		}
+
+		// Update successful, copy status back to original object
+		gitCommit.Status = fresh.Status
+		return nil
+	}
+
+	return fmt.Errorf("failed to update status after %d retries", maxRetries)
+}
+
+// updateScheduleStatus updates the status with schedule-aware information
+func (r *GitCommitReconciler) updateScheduleStatus(ctx context.Context, gitCommit *gitv1.GitCommit, phase gitv1.GitCommitPhase, message string) error {
+	log := log.FromContext(ctx)
+
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		fresh := &gitv1.GitCommit{}
+		if err := r.Get(ctx, client.ObjectKeyFromObject(gitCommit), fresh); err != nil {
+			return err
+		}
+
+		fresh.Status.Phase = phase
+		fresh.Status.Message = message
+		now := metav1.Now()
+		fresh.Status.LastSync = &now
+
+		// Preserve schedule-related fields
+		if gitCommit.Status.LastScheduledTime != nil {
+			fresh.Status.LastScheduledTime = gitCommit.Status.LastScheduledTime
+		}
+		if gitCommit.Status.NextScheduledTime != nil {
+			fresh.Status.NextScheduledTime = gitCommit.Status.NextScheduledTime
+		}
+
+		// Copy over REST API statuses if they exist
+		if len(gitCommit.Status.RestAPIStatuses) > 0 {
+			fresh.Status.RestAPIStatuses = gitCommit.Status.RestAPIStatuses
+		}
+
+		// Copy over execution history
+		if len(gitCommit.Status.ExecutionHistory) > 0 {
+			fresh.Status.ExecutionHistory = gitCommit.Status.ExecutionHistory
+		}
+
+		if err := r.Status().Update(ctx, fresh); err != nil {
+			if errors.IsConflict(err) && i < maxRetries-1 {
+				log.V(1).Info("Status update conflict, retrying", "attempt", i+1)
+				time.Sleep(time.Millisecond * 100)
+				continue
+			}
+			return err
+		}
+
+		gitCommit.Status = fresh.Status
+		return nil
+	}
+
+	return fmt.Errorf("failed to update status after %d retries", maxRetries)
+}
+
+// updateNextScheduledTime updates only the next scheduled time field
+func (r *GitCommitReconciler) updateNextScheduledTime(ctx context.Context, gitCommit *gitv1.GitCommit, nextTime *metav1.Time) error {
+	log := log.FromContext(ctx)
+	log.Info("DEBUG: updateNextScheduledTime called", "nextTime", nextTime)
+
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		fresh := &gitv1.GitCommit{}
+		if err := r.Get(ctx, client.ObjectKeyFromObject(gitCommit), fresh); err != nil {
+			log.Error(err, "DEBUG: Failed to get fresh copy")
+			return err
+		}
+
+		fresh.Status.NextScheduledTime = nextTime
+		log.Info("DEBUG: About to update status", "fresh.Status.NextScheduledTime", fresh.Status.NextScheduledTime)
+
+		if err := r.Status().Update(ctx, fresh); err != nil {
+			if errors.IsConflict(err) && i < maxRetries-1 {
+				log.V(1).Info("Status update conflict, retrying", "attempt", i+1)
+				time.Sleep(time.Millisecond * 100)
+				continue
+			}
+			log.Error(err, "DEBUG: Status update failed")
+			return err
+		}
+
+		gitCommit.Status.NextScheduledTime = nextTime
+		log.Info("DEBUG: updateNextScheduledTime SUCCESS", "nextTime", nextTime)
+		return nil
+	}
+
+	return fmt.Errorf("failed to update next scheduled time after %d retries", maxRetries)
 }
 
 func (r *GitCommitReconciler) SetupWithManager(mgr ctrl.Manager) error {

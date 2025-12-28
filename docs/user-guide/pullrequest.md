@@ -846,6 +846,255 @@ spec:
       - "platform-team"
 ```
 
+## Scheduled Pull Requests
+
+Schedule recurring pull requests using cron expressions to automate periodic configuration updates and change proposals.
+
+### Basic Scheduled PR
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: PullRequest
+metadata:
+  name: weekly-config-sync
+spec:
+  repository: "https://github.com/myorg/config-repo.git"
+  baseBranch: "main"
+  headBranch: "weekly-sync-{{ .timestamp | date "20060102" }}"
+  
+  title: "Weekly configuration sync - {{ .timestamp | date "2006-01-02" }}"
+  body: |
+    # Weekly Configuration Sync
+    
+    Automated pull request created on {{ .timestamp | date "Monday, January 2, 2006" }}
+    
+    This PR contains the latest configuration from the production cluster.
+  
+  # Schedule using cron syntax
+  schedule: "0 9 * * MON"  # Every Monday at 9 AM
+  
+  # Suspend execution temporarily
+  suspend: false
+  
+  # Keep history of last 10 executions (default)
+  maxExecutionHistory: 10
+  
+  authSecretRef: git-credentials
+  
+  resourceRefs:
+  - apiVersion: v1
+    kind: ConfigMap
+    name: prod-config
+    namespace: production
+    strategy:
+      type: dump
+      path: "configs/production/{{ .metadata.name }}.yaml"
+```
+
+### Schedule Format
+
+The schedule field supports standard cron syntax and special descriptors:
+
+**Cron Syntax**: `minute hour day month weekday`
+
+```yaml
+# Examples
+schedule: "0 9 * * *"        # Daily at 9 AM
+schedule: "0 9 * * MON"      # Every Monday at 9 AM
+schedule: "0 0 1 * *"        # First day of month at midnight
+schedule: "*/30 * * * *"     # Every 30 minutes
+schedule: "0 */4 * * *"      # Every 4 hours
+```
+
+**Special Descriptors**:
+
+```yaml
+schedule: "@hourly"   # Every hour
+schedule: "@daily"    # Every day at midnight
+schedule: "@weekly"   # Every Sunday at midnight
+schedule: "@monthly"  # First day of month at midnight
+```
+
+### Suspend Scheduled Execution
+
+Temporarily pause scheduled PR creation without deleting the resource:
+
+```yaml
+spec:
+  schedule: "0 9 * * *"
+  suspend: true  # Pauses execution, will resume when set to false
+```
+
+This is useful for:
+- Maintenance windows
+- Freeze periods (e.g., holiday freezes)
+- Temporary disabling of automation
+
+### Execution History
+
+View the history of scheduled PR creations:
+
+```bash
+kubectl get pullrequest weekly-config-sync -o yaml
+```
+
+```yaml
+status:
+  phase: "Created"
+  lastScheduledTime: "2024-01-15T09:00:00Z"
+  nextScheduledTime: "2024-01-22T09:00:00Z"
+  executionHistory:
+  - executionTime: "2024-01-15T09:00:00Z"
+    pullRequestNumber: 456
+    pullRequestURL: "https://github.com/myorg/config-repo/pull/456"
+    phase: "Created"
+    message: "Pull request created successfully"
+  - executionTime: "2024-01-08T09:00:00Z"
+    pullRequestNumber: 442
+    pullRequestURL: "https://github.com/myorg/config-repo/pull/442"
+    phase: "Created"
+    message: "Pull request created successfully"
+  - executionTime: "2024-01-01T09:00:00Z"
+    pullRequestNumber: 428
+    pullRequestURL: "https://github.com/myorg/config-repo/pull/428"
+    phase: "Created"
+    message: "Pull request created successfully"
+```
+
+### Scheduled PRs with TTL
+
+When both `schedule` and `ttlMinutes` are configured:
+- The schedule takes precedence
+- TTL is **ignored** for resource deletion
+- The resource persists and continues creating PRs on schedule
+- Use this for long-running periodic change proposals
+
+```yaml
+spec:
+  schedule: "@daily"
+  ttlMinutes: 60  # Ignored when schedule is set
+```
+
+### One-Time PR with TTL
+
+For one-time PRs that auto-delete after creation:
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: PullRequest
+metadata:
+  name: temporary-pr
+spec:
+  repository: "https://github.com/myorg/config-repo.git"
+  baseBranch: "main"
+  headBranch: "temp-update"
+  title: "Temporary configuration update"
+  authSecretRef: git-credentials
+  
+  # Delete resource 60 minutes after creation
+  ttlMinutes: 60
+  
+  files:
+  - path: "temp/config.yaml"
+    content: "temporary: data"
+```
+
+### Advanced Scheduling Examples
+
+#### Daily Backup PR
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: PullRequest
+metadata:
+  name: daily-backup
+spec:
+  repository: "https://github.com/myorg/backups.git"
+  baseBranch: "main"
+  headBranch: "backup-{{ .timestamp | date "2006-01-02" }}"
+  title: "Daily backup - {{ .timestamp | date "January 2, 2006" }}"
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  authSecretRef: git-credentials
+  
+  resourceRefs:
+  - apiVersion: v1
+    kind: Secret
+    namespace: "*"
+    selector:
+      matchLabels:
+        backup: "daily"
+    strategy:
+      type: dump
+      path: "secrets/{{ .metadata.namespace }}/{{ .metadata.name }}.yaml"
+```
+
+#### Weekly Security Review PR
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: PullRequest
+metadata:
+  name: weekly-security-review
+spec:
+  repository: "https://github.com/myorg/security-audits.git"
+  baseBranch: "main"
+  headBranch: "weekly-review-{{ .timestamp | date "2006-W01" }}"
+  title: "🔒 Weekly Security Configuration Review"
+  body: |
+    # Weekly Security Configuration Review
+    
+    Automated security configuration snapshot for week {{ .timestamp | date "2006-W01" }}
+    
+    **Review Required**: Security team must review and approve changes.
+  
+  schedule: "0 10 * * MON"  # Every Monday at 10 AM
+  authSecretRef: git-credentials
+  
+  labels:
+    - "security"
+    - "automated"
+    - "weekly-review"
+  
+  reviewers:
+    - "security-team"
+  
+  resourceRefs:
+  - apiVersion: v1
+    kind: NetworkPolicy
+    namespace: "*"
+    strategy:
+      type: dump
+      path: "network-policies/{{ .metadata.namespace }}/{{ .metadata.name }}.yaml"
+```
+
+#### Monthly Compliance Report PR
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: PullRequest
+metadata:
+  name: monthly-compliance
+spec:
+  repository: "https://github.com/myorg/compliance.git"
+  baseBranch: "main"
+  headBranch: "compliance-{{ .timestamp | date "2006-01" }}"
+  title: "📋 Monthly Compliance Report - {{ .timestamp | date "January 2006" }}"
+  schedule: "0 0 1 * *"  # First day of every month at midnight
+  maxExecutionHistory: 24  # Keep 2 years of history
+  authSecretRef: git-credentials
+  
+  resourceRefs:
+  - apiVersion: v1
+    kind: ConfigMap
+    namespace: "compliance"
+    selector:
+      matchLabels:
+        compliance: "audit"
+    strategy:
+      type: dump
+      path: "audits/{{ .timestamp | date "2006/01" }}/{{ .metadata.name }}.yaml"
+```
+
 ## Monitoring and Observability
 
 ### Metrics

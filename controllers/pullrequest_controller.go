@@ -15,6 +15,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/google/go-github/v55/github"
+	"github.com/robfig/cron/v3"
 	"golang.org/x/oauth2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -62,7 +63,12 @@ func (r *PullRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	// Check if the resource has expired due to TTL
+	// Check if scheduling is configured
+	if pullRequest.Spec.Schedule != "" {
+		return r.handleScheduledPullRequest(ctx, &pullRequest)
+	}
+
+	// Check if the resource has expired due to TTL (only for non-scheduled resources)
 	expired, err := r.checkTTLExpired(ctx, &pullRequest)
 	if err != nil {
 		log.Error(err, "failed to check TTL expiration")
@@ -882,6 +888,291 @@ func (r *PullRequestReconciler) buildFileContent(file *gitv1.File, statuses []gi
 	// Join results with delimiter
 	combinedContent := strings.Join(results, delimiter)
 	return []byte(combinedContent)
+}
+
+// handleScheduledPullRequest processes PullRequest resources with a schedule configured
+func (r *PullRequestReconciler) handleScheduledPullRequest(ctx context.Context, pullRequest *gitv1.PullRequest) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+
+	// Check if execution is suspended
+	if pullRequest.Spec.Suspend {
+		log.Info("PullRequest execution is suspended")
+		if err := r.updateScheduleStatus(ctx, pullRequest, gitv1.PullRequestPhasePending, "Execution suspended"); err != nil {
+			return ctrl.Result{}, err
+		}
+		// Still requeue to check if suspend flag changes
+		return ctrl.Result{RequeueAfter: time.Minute * 1}, nil
+	}
+
+	// Parse cron schedule
+	parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+	schedule, err := parser.Parse(pullRequest.Spec.Schedule)
+	if err != nil {
+		log.Error(err, "failed to parse cron schedule", "schedule", pullRequest.Spec.Schedule)
+		if err := r.updateScheduleStatus(ctx, pullRequest, gitv1.PullRequestPhaseFailed, fmt.Sprintf("Invalid cron schedule: %v", err)); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, err
+	}
+
+	now := time.Now()
+
+	// Calculate next scheduled time
+	nextTime := schedule.Next(now)
+	nextTimeMeta := metav1.NewTime(nextTime)
+
+	// Check if it's time to execute
+	shouldExecute := false
+	if pullRequest.Status.LastScheduledTime == nil {
+		// First execution - execute immediately
+		shouldExecute = true
+		log.Info("First scheduled execution, running immediately")
+	} else {
+		// Check if we've passed the next scheduled time
+		if pullRequest.Status.NextScheduledTime != nil {
+			scheduledTime := pullRequest.Status.NextScheduledTime.Time
+			if now.After(scheduledTime) || now.Equal(scheduledTime) {
+				shouldExecute = true
+				log.Info("Scheduled time reached, executing", "scheduledTime", scheduledTime)
+			}
+		}
+	}
+
+	if !shouldExecute {
+		// Not time to execute yet, update next scheduled time and requeue
+		if pullRequest.Status.NextScheduledTime == nil || !pullRequest.Status.NextScheduledTime.Equal(&nextTimeMeta) {
+			if err := r.updateNextScheduledTime(ctx, pullRequest, &nextTimeMeta); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+
+		// Calculate how long to wait until next execution
+		waitDuration := time.Until(nextTime)
+		if waitDuration < time.Minute {
+			waitDuration = time.Minute
+		}
+
+		log.Info("Waiting for next scheduled execution", "nextTime", nextTime, "waitDuration", waitDuration)
+		return ctrl.Result{RequeueAfter: waitDuration}, nil
+	}
+
+	// Time to execute - update last scheduled time
+	nowMeta := metav1.NewTime(now)
+	pullRequest.Status.LastScheduledTime = &nowMeta
+
+	// Execute the pull request creation
+	log.Info("Executing scheduled PullRequest")
+
+	// Update status to Running
+	if err := r.updateScheduleStatus(ctx, pullRequest, gitv1.PullRequestPhaseRunning, "Processing scheduled pull request"); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// Check REST API conditions if configured
+	if len(pullRequest.Spec.RestAPIs) > 0 {
+		shouldProceed, err := r.checkRestAPIConditions(ctx, pullRequest)
+		if err != nil {
+			log.Error(err, "failed to check REST API conditions")
+			r.recordPRExecution(ctx, pullRequest, 0, "", gitv1.PullRequestPhaseFailed, fmt.Sprintf("REST API condition check failed: %v", err))
+			// Calculate next execution time
+			nextTime := schedule.Next(now)
+			nextTimeMeta := metav1.NewTime(nextTime)
+			r.updateNextScheduledTime(ctx, pullRequest, &nextTimeMeta)
+			return ctrl.Result{RequeueAfter: time.Until(nextTime)}, nil
+		}
+
+		if !shouldProceed {
+			log.Info("REST API conditions not met, skipping this scheduled execution")
+			r.recordPRExecution(ctx, pullRequest, 0, "", gitv1.PullRequestPhasePending, "REST API conditions not met")
+			// Calculate next execution time
+			nextTime := schedule.Next(now)
+			nextTimeMeta := metav1.NewTime(nextTime)
+			r.updateNextScheduledTime(ctx, pullRequest, &nextTimeMeta)
+			return ctrl.Result{RequeueAfter: time.Until(nextTime)}, nil
+		}
+
+		log.Info("All REST API conditions met, proceeding with scheduled pull request")
+	}
+
+	auth, token, err := r.getAuthFromSecret(ctx, pullRequest.Namespace, pullRequest.Spec.AuthSecretRef, pullRequest.Spec.AuthSecretKey)
+	if err != nil {
+		log.Error(err, "failed to get authentication")
+		r.recordPRExecution(ctx, pullRequest, 0, "", gitv1.PullRequestPhaseFailed, fmt.Sprintf("Authentication failed: %v", err))
+		// Calculate next execution time
+		nextTime := schedule.Next(now)
+		nextTimeMeta := metav1.NewTime(nextTime)
+		r.updateNextScheduledTime(ctx, pullRequest, &nextTimeMeta)
+		return ctrl.Result{RequeueAfter: time.Until(nextTime)}, nil
+	}
+
+	prNumber, prURL, err := r.createPullRequest(ctx, pullRequest, auth, token)
+	if err != nil {
+		log.Error(err, "failed to create scheduled pull request")
+		r.recordPRExecution(ctx, pullRequest, 0, "", gitv1.PullRequestPhaseFailed, fmt.Sprintf("Pull request creation failed: %v", err))
+		// Calculate next execution time
+		nextTime := schedule.Next(now)
+		nextTimeMeta := metav1.NewTime(nextTime)
+		r.updateNextScheduledTime(ctx, pullRequest, &nextTimeMeta)
+		return ctrl.Result{RequeueAfter: time.Until(nextTime)}, nil
+	}
+
+	// Record successful execution
+	log.Info("Scheduled pull request created successfully", "prNumber", prNumber, "prURL", prURL)
+	r.recordPRExecution(ctx, pullRequest, prNumber, prURL, gitv1.PullRequestPhaseCreated, "Pull request created successfully")
+
+	// Calculate next execution time
+	nextTime = schedule.Next(now)
+	nextTimeMeta = metav1.NewTime(nextTime)
+	r.updateNextScheduledTime(ctx, pullRequest, &nextTimeMeta)
+
+	// Requeue for next execution
+	waitDuration := time.Until(nextTime)
+	if waitDuration < time.Minute {
+		waitDuration = time.Minute
+	}
+
+	log.Info("Scheduled execution complete, waiting for next run", "nextTime", nextTime, "waitDuration", waitDuration)
+	return ctrl.Result{RequeueAfter: waitDuration}, nil
+}
+
+// recordPRExecution adds an execution record to the history and maintains the max history limit
+func (r *PullRequestReconciler) recordPRExecution(ctx context.Context, pullRequest *gitv1.PullRequest, prNumber int, prURL string, phase gitv1.PullRequestPhase, message string) error {
+	log := log.FromContext(ctx)
+
+	// Retry logic to handle optimistic concurrency conflicts
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		// Get fresh copy of the resource
+		fresh := &gitv1.PullRequest{}
+		if err := r.Get(ctx, client.ObjectKeyFromObject(pullRequest), fresh); err != nil {
+			return err
+		}
+
+		// Create new execution record
+		now := metav1.Now()
+		record := gitv1.PRExecutionRecord{
+			ExecutionTime:     now,
+			PullRequestNumber: prNumber,
+			PullRequestURL:    prURL,
+			Phase:             phase,
+			Message:           message,
+		}
+
+		// Add to execution history
+		fresh.Status.ExecutionHistory = append([]gitv1.PRExecutionRecord{record}, fresh.Status.ExecutionHistory...)
+
+		// Maintain max history limit
+		maxHistory := 10 // default
+		if pullRequest.Spec.MaxExecutionHistory != nil {
+			maxHistory = *pullRequest.Spec.MaxExecutionHistory
+		}
+		if len(fresh.Status.ExecutionHistory) > maxHistory {
+			fresh.Status.ExecutionHistory = fresh.Status.ExecutionHistory[:maxHistory]
+		}
+
+		// Update current status fields
+		fresh.Status.Phase = phase
+		fresh.Status.Message = message
+		fresh.Status.PullRequestNumber = prNumber
+		fresh.Status.PullRequestURL = prURL
+		fresh.Status.LastSync = &now
+		fresh.Status.LastScheduledTime = pullRequest.Status.LastScheduledTime
+
+		// Attempt to update status
+		if err := r.Status().Update(ctx, fresh); err != nil {
+			if errors.IsConflict(err) && i < maxRetries-1 {
+				log.V(1).Info("Status update conflict, retrying", "attempt", i+1)
+				time.Sleep(time.Millisecond * 100)
+				continue
+			}
+			return err
+		}
+
+		// Update successful, copy status back to original object
+		pullRequest.Status = fresh.Status
+		return nil
+	}
+
+	return fmt.Errorf("failed to update status after %d retries", maxRetries)
+}
+
+// updateScheduleStatus updates the status with schedule-aware information
+func (r *PullRequestReconciler) updateScheduleStatus(ctx context.Context, pullRequest *gitv1.PullRequest, phase gitv1.PullRequestPhase, message string) error {
+	log := log.FromContext(ctx)
+
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		fresh := &gitv1.PullRequest{}
+		if err := r.Get(ctx, client.ObjectKeyFromObject(pullRequest), fresh); err != nil {
+			return err
+		}
+
+		fresh.Status.Phase = phase
+		fresh.Status.Message = message
+		now := metav1.Now()
+		fresh.Status.LastSync = &now
+
+		// Preserve schedule-related fields
+		if pullRequest.Status.LastScheduledTime != nil {
+			fresh.Status.LastScheduledTime = pullRequest.Status.LastScheduledTime
+		}
+		if pullRequest.Status.NextScheduledTime != nil {
+			fresh.Status.NextScheduledTime = pullRequest.Status.NextScheduledTime
+		}
+
+		// Copy over REST API statuses if they exist
+		if len(pullRequest.Status.RestAPIStatuses) > 0 {
+			fresh.Status.RestAPIStatuses = pullRequest.Status.RestAPIStatuses
+		}
+
+		// Copy over execution history
+		if len(pullRequest.Status.ExecutionHistory) > 0 {
+			fresh.Status.ExecutionHistory = pullRequest.Status.ExecutionHistory
+		}
+
+		if err := r.Status().Update(ctx, fresh); err != nil {
+			if errors.IsConflict(err) && i < maxRetries-1 {
+				log.V(1).Info("Status update conflict, retrying", "attempt", i+1)
+				time.Sleep(time.Millisecond * 100)
+				continue
+			}
+			return err
+		}
+
+		pullRequest.Status = fresh.Status
+		return nil
+	}
+
+	return fmt.Errorf("failed to update status after %d retries", maxRetries)
+}
+
+// updateNextScheduledTime updates only the next scheduled time field
+func (r *PullRequestReconciler) updateNextScheduledTime(ctx context.Context, pullRequest *gitv1.PullRequest, nextTime *metav1.Time) error {
+	log := log.FromContext(ctx)
+
+	const maxRetries = 3
+	for i := 0; i < maxRetries; i++ {
+		fresh := &gitv1.PullRequest{}
+		if err := r.Get(ctx, client.ObjectKeyFromObject(pullRequest), fresh); err != nil {
+			return err
+		}
+
+		fresh.Status.NextScheduledTime = nextTime
+
+		if err := r.Status().Update(ctx, fresh); err != nil {
+			if errors.IsConflict(err) && i < maxRetries-1 {
+				log.V(1).Info("Status update conflict, retrying", "attempt", i+1)
+				time.Sleep(time.Millisecond * 100)
+				continue
+			}
+			return err
+		}
+
+		pullRequest.Status.NextScheduledTime = nextTime
+		return nil
+	}
+
+	return fmt.Errorf("failed to update next scheduled time after %d retries", maxRetries)
 }
 
 func (r *PullRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {

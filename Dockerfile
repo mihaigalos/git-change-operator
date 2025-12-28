@@ -67,24 +67,40 @@ ARG GIT_REFERENCE
 LABEL git-ref="$GIT_REFERENCE" \
       org.opencontainers.image.source="$GIT_REFERENCE"
 
+# Debug: Show what repos are configured
+RUN echo "APK_MAIN_REPO=$APK_MAIN_REPO" && \
+    echo "APK_COMMUNITY_REPO=$APK_COMMUNITY_REPO"
+
 # Configure Alpine repositories if custom ones are provided
 RUN if [ -n "$APK_MAIN_REPO" ] && [ -n "$APK_COMMUNITY_REPO" ]; then \
+        echo "Configuring custom Alpine repositories..." && \
         echo "$APK_MAIN_REPO" > /etc/apk/repositories && \
-        echo "$APK_COMMUNITY_REPO" >> /etc/apk/repositories; \
-    fi
-
-# Install ca-certificates first
-RUN apk --no-cache add ca-certificates \
-    && echo "curl bash helm"
-
-# Install corporate certificate from build arg AFTER ca-certificates is installed
-RUN if [ -n "$CORPORATE_CA_CERT" ]; then \
-        echo "$CORPORATE_CA_CERT" > /usr/local/share/ca-certificates/corporate-ca.crt && \
-        update-ca-certificates && \
-        echo "Corporate certificate installed from build arg"; \
+        echo "$APK_COMMUNITY_REPO" >> /etc/apk/repositories && \
+        cat /etc/apk/repositories; \
     else \
-        echo "No corporate certificate provided in build arg"; \
+        echo "Using default Alpine repositories" && \
+        cat /etc/apk/repositories; \
     fi
+
+# Install corporate certificate BEFORE attempting apk operations
+# This must be done manually since ca-certificates package isn't installed yet
+RUN if [ -n "$CORPORATE_CA_CERT" ]; then \
+        mkdir -p /usr/local/share/ca-certificates && \
+        echo "$CORPORATE_CA_CERT" > /usr/local/share/ca-certificates/corporate-ca.crt && \
+        cat /usr/local/share/ca-certificates/corporate-ca.crt >> /etc/ssl/certs/ca-certificates.crt && \
+        echo "Corporate certificate manually installed before apk operations"; \
+    else \
+        echo "No corporate certificate provided"; \
+    fi
+
+# Now install ca-certificates and other packages
+RUN apk --no-cache add ca-certificates \
+    && echo "curl bash helm" \
+    && if [ -n "$CORPORATE_CA_CERT" ]; then \
+        update-ca-certificates && \
+        echo "Corporate certificate properly registered with update-ca-certificates"; \
+    fi
+
 RUN addgroup -S user && adduser -S user -G user
 WORKDIR /home/user
 

@@ -18,16 +18,16 @@ The Git Change Operator uses a comprehensive testing strategy:
 
 ```bash
 # Run everything
-make test-all
+just test-all
 
 # Just unit tests
-make test
+just test-unit
 
 # Just integration tests  
-make test-integration
+just test-integration
 
 # Just e2e tests
-make test-e2e
+just test-e2e
 ```
 
 ### Test Configuration
@@ -37,13 +37,13 @@ Unit tests can be configured with environment variables:
 ```bash
 # Use different test timeout
 export TEST_TIMEOUT=300s
-make test
+just test-unit
 
 # Enable debug logging
 export TEST_DEBUG=true
-make test
+just test-unit
 
 # Use custom test assets
 export TEST_ASSETS_DIR=/path/to/assets
-make test
+just test-unit
 ```

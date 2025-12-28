@@ -37,35 +37,43 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
+    - name: Install just
+      run: |
+        mkdir -p /tmp/just
+        curl -L https://github.com/casey/just/releases/download/1.45.0/just-1.45.0-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp/just
+        sudo mv /tmp/just/just /usr/local/bin/
+        rm -rf /tmp/just
+        just --version
+
     - name: Install controller-gen
       run: go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 
-    - name: Run make test
-      run: make test
+    - name: Run unit tests
+      run: just test-unit
 
-    - name: Run make fmt check
+    - name: Run just fmt check
       run: |
-        make fmt
-        git diff --exit-code --name-only
+        just fmt
+        git diff --exit-code --name-only -- '*.go'
       
-    - name: Run make vet
-      run: make vet
+    - name: Run just vet
+      run: just vet
 
     - name: Generate manifests and check for changes
       run: |
-        make manifests
-        if [[ -n $(git status --porcelain) ]]; then
-          echo "Generated manifests are out of date. Please run 'make manifests' and commit the changes."
-          git status --porcelain
-          git diff
+        just manifests
+        if [[ -n $(git status --porcelain config/crd config/rbac) ]]; then
+          echo "Generated manifests are out of date. Please run 'just manifests' and commit the changes."
+          git status --porcelain config/crd config/rbac
+          git diff config/crd config/rbac
           exit 1
         fi
 
     - name: Generate code and check for changes
       run: |
-        make generate
+        just generate
         if [[ -n $(git status --porcelain) ]]; then
-          echo "Generated code is out of date. Please run 'make generate' and commit the changes."
+          echo "Generated code is out of date. Please run 'just generate' and commit the changes."
           git status --porcelain
           git diff
           exit 1
@@ -86,8 +94,16 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
         cache: true
 
+    - name: Install just
+      run: |
+        mkdir -p /tmp/just
+        curl -L https://github.com/casey/just/releases/download/1.45.0/just-1.45.0-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp/just
+        sudo mv /tmp/just/just /usr/local/bin/
+        rm -rf /tmp/just
+        just --version
+
     - name: Build manager binary
-      run: make build
+      run: just build
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -111,23 +127,19 @@ jobs:
         go-version: ${{ env.GO_VERSION }}
         cache: true
 
+    - name: Install just
+      run: |
+        mkdir -p /tmp/just
+        curl -L https://github.com/casey/just/releases/download/1.45.0/just-1.45.0-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp/just
+        sudo mv /tmp/just/just /usr/local/bin/
+        rm -rf /tmp/just
+        just --version
+
     - name: Install controller-gen
       run: go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 
-    - name: Setup test environment for Linux AMD64
-      run: |
-        # Install setup-envtest tool
-        go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-        
-        # Use setup-envtest to download and set up the binaries
-        export KUBEBUILDER_ASSETS=$(setup-envtest use --arch amd64 --os linux -p path)
-        echo "KUBEBUILDER_ASSETS=$KUBEBUILDER_ASSETS" >> $GITHUB_ENV
-        echo "Using KUBEBUILDER_ASSETS: $KUBEBUILDER_ASSETS"
-
     - name: Run integration tests
-      run: |
-        # Run the integration tests with the environment variable set
-        go test -v ./test/suite_test.go ./test/gitcommit_controller_test.go ./test/pullrequest_controller_test.go
+      run: just test-integration
 
   helm-lint:
     name: Helm Lint
@@ -143,11 +155,19 @@ jobs:
       with:
         version: 'latest'
 
+    - name: Install just
+      run: |
+        mkdir -p /tmp/just
+        curl -L https://github.com/casey/just/releases/download/1.45.0/just-1.45.0-x86_64-unknown-linux-musl.tar.gz | tar xz -C /tmp/just
+        sudo mv /tmp/just/just /usr/local/bin/
+        rm -rf /tmp/just
+        just --version
+
     - name: Lint Helm chart
-      run: make helm-lint
+      run: just helm-lint
 
     - name: Generate Helm template
-      run: make helm-template
+      run: just helm-template
 
   # Status check job is needed because integration-test has a conditional `if` clause
   # that may cause it to be skipped. Without this job, GitHub would mark the workflow
