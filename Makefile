@@ -234,7 +234,10 @@ kind-demo: # Create a demo GitCommit resource (hidden)
 kind-load-image: # Load local Docker image into Kind cluster (hidden)
 	@echo "📦 Loading local operator image into Kind cluster..."
 	@export PATH="/opt/homebrew/bin:$$PATH"; \
-	kind load docker-image ${IMG} --name git-change-operator; \
+	export DOCKER_API_VERSION=1.43; \
+	docker save ${IMG} -o /tmp/operator-image.tar; \
+	kind load image-archive /tmp/operator-image.tar --name git-change-operator; \
+	rm -f /tmp/operator-image.tar; \
 	echo "✅ Image loaded into Kind cluster"
 
 kind-restart-operator: # Restart operator deployment to pick up new image (hidden)
