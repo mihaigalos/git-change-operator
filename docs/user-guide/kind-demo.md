@@ -21,7 +21,7 @@ If you're behind a corporate proxy or firewall, the demo includes built-in suppo
 The simplest way to run the complete demo is with our comprehensive Makefile target:
 
 ```bash
-make kind-full-demo
+just kind-full-demo
 ```
 
 This single command will:
@@ -38,7 +38,7 @@ If you want to understand each step or run them individually, here's what the fu
 ### 1. Create Kind Cluster
 
 ```bash
-make kind-create
+just kind-create
 ```
 
 This creates a Kind cluster with:
@@ -49,7 +49,7 @@ This creates a Kind cluster with:
 ### 2. Build and Deploy Operator
 
 ```bash
-make kind-deploy
+just kind-deploy
 ```
 
 This will:
@@ -130,7 +130,7 @@ kubectl get secrets -n git-change-operator-system
 To remove the demo environment:
 
 ```bash
-make kind-destroy
+just kind-destroy
 ```
 
 This removes the Kind cluster and cleans up all resources.

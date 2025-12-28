@@ -56,7 +56,7 @@ kubectl apply -k https://github.com/mihaigalos/git-change-operator/config
 # Or clone and install locally
 git clone https://github.com/mihaigalos/git-change-operator.git
 cd git-change-operator
-make install
+just install
 ```
 
 ### Development Installation
@@ -69,10 +69,10 @@ git clone https://github.com/mihaigalos/git-change-operator.git
 cd git-change-operator
 
 # Install CRDs
-make install
+just install
 
 # Run locally (outside cluster)
-make run
+just run
 ```
 
 ## Configuration

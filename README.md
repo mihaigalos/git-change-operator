@@ -64,7 +64,7 @@ spec:
 Please have a token (preferably fine-grained) with fine-grained permissions ready, the following step asks for it if not already present in a git-ignored file called `token` in this repo.
 
 ```bash
-make kind-full-demo
+just kind-full-demo
 ```
 
 ## Resource Reference Capabilities

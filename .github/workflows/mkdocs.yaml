@@ -5,7 +5,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - Makefile
+      - Justfile
       - "README.md"
       - 'docs/**'
       - 'mkdocs.yml'
@@ -13,7 +13,7 @@ on:
   pull_request:
     branches: [ main ]
     paths:
-      - Makefile
+      - Justfile
       - "README.md"
       - 'docs/**'
       - 'mkdocs.yml'
@@ -106,13 +106,13 @@ jobs:
       run: |
         CHART_VERSION=$(yq eval '.version' helm/git-change-operator/Chart.yaml)
         echo "Deploying documentation version: ${CHART_VERSION}"
-        make docs-version-deploy VERSION=${CHART_VERSION}
-        make docs-version-set-default VERSION=${CHART_VERSION}
+        just docs-version-deploy ${CHART_VERSION}
+        just docs-version-set-default ${CHART_VERSION}
         
     - name: Deploy release version
       if: github.event_name == 'release'
       run: |
         VERSION=${GITHUB_REF#refs/tags/}
         echo "Deploying release documentation version: ${VERSION}"
-        make docs-version-deploy VERSION=${VERSION}
-        make docs-version-set-default VERSION=${VERSION}
+        just docs-version-deploy ${VERSION}
+        just docs-version-set-default ${VERSION}

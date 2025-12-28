@@ -37,25 +37,28 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
+    - name: Install just
+      uses: extractions/setup-just@v2
+
     - name: Install controller-gen
       run: go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 
     - name: Run unit tests
-      run: make test
+      run: just test-unit
 
-    - name: Run make fmt check
+    - name: Run just fmt check
       run: |
-        make fmt
+        just fmt
         git diff --exit-code --name-only
       
-    - name: Run make vet
-      run: make vet
+    - name: Run just vet
+      run: just vet
 
     - name: Generate manifests and check for changes
       run: |
-        make manifests
+        just manifests
         if [[ -n $(git status --porcelain) ]]; then
-          echo "Generated manifests are out of date. Please run 'make manifests' and commit the changes."
+          echo "Generated manifests are out of date. Please run 'just manifests' and commit the changes."
           git status --porcelain
           git diff
           exit 1
@@ -63,9 +66,9 @@ jobs:
 
     - name: Generate code and check for changes
       run: |
-        make generate
+        just generate
         if [[ -n $(git status --porcelain) ]]; then
-          echo "Generated code is out of date. Please run 'make generate' and commit the changes."
+          echo "Generated code is out of date. Please run 'just generate' and commit the changes."
           git status --porcelain
           git diff
           exit 1
@@ -87,7 +90,7 @@ jobs:
         cache: true
 
     - name: Build manager binary
-      run: make build
+      run: just build
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
@@ -115,7 +118,7 @@ jobs:
       run: go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
 
     - name: Run integration tests
-      run: make test-integration
+      run: just test-integration
 
   helm-lint:
     name: Helm Lint
@@ -132,10 +135,10 @@ jobs:
         version: 'latest'
 
     - name: Lint Helm chart
-      run: make helm-lint
+      run: just helm-lint
 
     - name: Generate Helm template
-      run: make helm-template
+      run: just helm-template
 
   # Status check job is needed because integration-test has a conditional `if` clause
   # that may cause it to be skipped. Without this job, GitHub would mark the workflow

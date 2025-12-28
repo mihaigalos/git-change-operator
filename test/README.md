@@ -2,7 +2,7 @@
 
 This project includes comprehensive tests that can be run without needing a real Kubernetes cluster.
 
-**🚀 Quick Start:** Run `make test-integration` or `make test-all` - all required tools and binaries will be automatically downloaded!
+**🚀 Quick Start:** Run `just test-integration` or `just test-all` - all required tools and binaries will be automatically downloaded!
 
 ## Test Types
 
@@ -10,7 +10,7 @@ This project includes comprehensive tests that can be run without needing a real
 Pure unit tests that use fake clients and don't require external dependencies:
 
 ```bash
-make test-unit
+just test-unit
 # or directly
 go test -v ./test/*unit_test.go
 ```
@@ -24,7 +24,7 @@ These tests cover:
 Integration tests using controller-runtime's `envtest` that creates a minimal API server:
 
 ```bash
-make test-integration
+just test-integration
 # or directly  
 go test -v ./test/suite_test.go ./test/gitcommit_controller_test.go ./test/pullrequest_controller_test.go
 ```
@@ -40,22 +40,22 @@ These tests cover:
 **Quick Start (Recommended):**
 ```bash
 # Run integration tests with automatic setup
-make test-integration
+just test-integration
 
 # Or run all tests (unit + integration) with automatic setup  
-make test-all
+just test-all
 
 # For unit tests only (no setup required)
-make test
+just test
 ```
 
 **Manual Setup Commands:**
 ```bash
 # Set up test environment manually (if needed)
-make setup-test-env
+just setup-test-env
 
 # Run unit tests only (no external dependencies)
-make test-unit
+just test-unit
 ```
 
 ## Test Environment
@@ -89,7 +89,7 @@ export KUBEBUILDER_ASSETS=$(pwd)/bin/kubebuilder/k8s/1.34.1-darwin-arm64
 setup-envtest use --bin-dir /usr/local/kubebuilder/bin
 
 # Now you can run integration tests
-make test-integration
+just test-integration
 ```
 
 ## What Gets Tested
