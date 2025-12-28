@@ -180,19 +180,19 @@ helm uninstall git-change-operator --namespace git-change-operator-system
 ### Lint the chart
 
 ```bash
-make helm-lint
+just helm-lint
 ```
 
 ### Generate templates
 
 ```bash
-make helm-template
+just helm-template
 ```
 
 ### Package the chart
 
 ```bash
-make helm-package
+just helm-package
 ```
 
 ## License
