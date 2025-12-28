@@ -104,8 +104,8 @@ jobs:
         echo "Building image with version: ${APP_VERSION}"
         
         # Build with version tags
-        just docker-build IMG=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${APP_VERSION}-${CHART_VERSION}
-        just docker-build IMG=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        just --set img "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${APP_VERSION}-${CHART_VERSION}" docker-build
+        just --set img "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" docker-build
         
         # Push images
         docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${APP_VERSION}-${CHART_VERSION}
