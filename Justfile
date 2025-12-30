@@ -392,7 +392,7 @@ docs-version-deploy version: docs-deps docs-prepare
 
 # Set default version for documentation
 docs-version-set-default version: docs-deps
-    docs/.venv/bin/mike set-default {{version}}
+    docs/.venv/bin/mike set-default --push {{version}}
 
 # List all deployed documentation versions
 docs-version-list: docs-deps
