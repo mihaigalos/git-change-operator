@@ -1,6 +1,3 @@
-# git-change-operator
-
-
 <img align="right" width="250px" src="docs/images/git-change-operator-logo.png">
 
 [![CI](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml)
