@@ -12,6 +12,13 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
   - secrets
   verbs:
   - get
@@ -30,9 +37,57 @@ rules:
   - update
   - watch
 - apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - servicemonitors
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
   - gco.galos.one
   resources:
   - gitcommits
+  - pullrequests
+  - gitchangeoperators
   verbs:
   - create
   - delete
@@ -41,42 +96,20 @@ rules:
   - patch
   - update
   - watch
-  - update
 - apiGroups:
   - gco.galos.one
   resources:
   - gitcommits/finalizers
+  - pullrequests/finalizers
+  - gitchangeoperators/finalizers
+  verbs:
   - update
 - apiGroups:
   - gco.galos.one
   resources:
   - gitcommits/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - gco.galos.one
-  resources:
-  - pullrequests
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - gco.galos.one
-  resources:
-  - pullrequests/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - gco.galos.one
-  resources:
   - pullrequests/status
+  - gitchangeoperators/status
   verbs:
   - get
   - patch
