@@ -8,6 +8,146 @@ Complete API documentation and Custom Resource Definition (CRD) specifications f
 - **Version**: `v1`
 - **Scope**: Namespaced
 
+## Custom Resources
+
+The operator provides three custom resources:
+
+1. **GitCommit** - Automated git commits from Kubernetes resources
+2. **PullRequest** - Automated pull request creation
+3. **GitChangeOperator** - Operator configuration and resource management
+
+## GitChangeOperator Resource
+
+### Overview
+The `GitChangeOperator` resource configures the operator itself and manages operator-level resources like metrics services, ServiceMonitor, and Ingress. This CR allows dynamic configuration of the running operator without requiring Helm redeployment.
+
+### Resource Definition
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitChangeOperator
+metadata:
+  name: string
+  namespace: string
+spec:
+  replicaCount: int                    # optional - Number of operator replicas
+  image:
+    repository: string                 # Container image repository
+    tag: string                       # Container image tag
+    pullPolicy: string                # Image pull policy
+  operator:
+    leaderElect: boolean              # Enable leader election
+    metricsAddr: string               # Metrics server address
+    probeAddr: string                 # Health probe address
+  rbac:
+    create: boolean                   # Create RBAC resources
+  serviceAccount:
+    create: boolean                   # Create ServiceAccount
+    name: string                      # ServiceAccount name
+  metrics:
+    enabled: boolean                  # Enable metrics
+    service:
+      type: string                    # Service type (ClusterIP, NodePort, etc.)
+      port: int                       # Service port
+    serviceMonitor:
+      enabled: boolean                # Enable ServiceMonitor
+      name: string                    # ServiceMonitor name
+      interval: string                # Scrape interval
+      scrapeTimeout: string           # Scrape timeout
+      labels: map[string]string       # Additional labels
+      annotations: map[string]string  # Additional annotations
+  ingress:
+    enabled: boolean                  # Enable Ingress
+    name: string                      # Ingress name
+    ingressClassName: string          # IngressClass to use
+    labels: map[string]string         # Additional labels
+    annotations: map[string]string    # Additional annotations
+    hosts: []IngressHost              # Host configurations
+    tls: []IngressTLS                 # TLS configurations
+  crds:
+    install: boolean                  # Install CRDs
+status:
+  phase: string                       # Current phase (Ready, etc.)
+  observedGeneration: int             # Last observed generation
+```
+
+### Complete Example
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitChangeOperator
+metadata:
+  name: git-change-operator
+  namespace: git-change-operator-system
+spec:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/mihaigalos/git-change-operator
+    tag: latest
+    pullPolicy: IfNotPresent
+  operator:
+    leaderElect: true
+    metricsAddr: ":8080"
+    probeAddr: ":8081"
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+  metrics:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 8080
+    serviceMonitor:
+      enabled: true
+      name: git-change-operator-metrics
+      interval: "30s"
+      scrapeTimeout: "10s"
+      labels:
+        prometheus: kube-prometheus
+      annotations:
+        monitoring/scrape: "true"
+  ingress:
+    enabled: true
+    name: git-change-operator-ingress
+    ingressClassName: nginx
+    labels:
+      app: git-change-operator
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: git-change-operator.example.com
+        paths:
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: git-change-operator-metrics-service
+                port:
+                  number: 8080
+    tls:
+      - hosts:
+          - git-change-operator.example.com
+        secretName: git-change-operator-tls
+```
+
+### Managed Resources
+
+When a GitChangeOperator CR is created, the operator dynamically manages the following resources:
+
+- **Service** - Metrics service (when `metrics.enabled: true`)
+- **ServiceMonitor** - Prometheus ServiceMonitor (when `metrics.serviceMonitor.enabled: true`)
+- **Ingress** - Ingress resource (when `ingress.enabled: true`)
+
+These resources are owned by the GitChangeOperator CR and will be automatically deleted when the CR is removed.
+
+### Configuration Notes
+
+- The GitChangeOperator CR is typically created by Helm during installation
+- Changes to the CR spec are reconciled automatically by the operator
+- Bootstrap resources (RBAC, CRDs, Deployment) are still managed via Helm/Kustomize
+- Runtime-configurable resources (Service, ServiceMonitor, Ingress) are managed by the operator itself
+
 ## GitCommit Resource
 
 ### Overview

@@ -26,7 +26,7 @@ vet:
 
 # Generate CRDs and RBAC manifests
 manifests:
-    controller-gen crd:crdVersions=v1 rbac:roleName=manager-role paths=./... output:crd:artifacts:config=config/crd/bases/v1 output:rbac:artifacts:config=config/rbac
+    controller-gen crd paths="./api/v1" output:crd:artifacts:config=config/crd/bases
 
 # Generate Go code (deepcopy, etc.)
 generate:

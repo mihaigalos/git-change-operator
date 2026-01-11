@@ -1,0 +1,397 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.20.0
+  name: gitcommits.gco.galos.one
+spec:
+  group: gco.galos.one
+  names:
+    kind: GitCommit
+    listKind: GitCommitList
+    plural: gitcommits
+    singular: gitcommit
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.repository
+      name: Repository
+      type: string
+    - jsonPath: .spec.branch
+      name: Branch
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.commitSHA
+      name: CommitSHA
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              authSecretKey:
+                type: string
+              authSecretRef:
+                type: string
+              branch:
+                type: string
+              commitMessage:
+                type: string
+              encryption:
+                properties:
+                  enabled:
+                    type: boolean
+                  fileExtension:
+                    type: string
+                  recipients:
+                    items:
+                      properties:
+                        secretRef:
+                          properties:
+                            key:
+                              type: string
+                            name:
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - type
+                      type: object
+                    type: array
+                required:
+                - enabled
+                type: object
+              files:
+                items:
+                  properties:
+                    content:
+                      type: string
+                    path:
+                      type: string
+                    restAPIDelimiter:
+                      default: |2+
+
+                      description: |-
+                        RestAPIDelimiter specifies how to join multiple REST API results when RestAPIName is empty
+                        Default: "\n" (newline). Common options: ", ", " | ", "\n---\n", etc.
+                        Only used when UseRestAPIData is true and RestAPIName is empty (combining all APIs)
+                      type: string
+                    restAPIName:
+                      description: |-
+                        RestAPIName specifies which REST API result to use (by name)
+                        If empty and UseRestAPIData is true, all REST API results will be combined
+                      maxLength: 63
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                      type: string
+                    useRestAPIData:
+                      description: |-
+                        UseRestAPIData indicates this file content should be the formatted REST API response
+                        When true, Content is ignored and the file will contain the API response data
+                      type: boolean
+                    writeMode:
+                      default: overwrite
+                      description: |-
+                        WriteMode controls how the file content is written to the repository
+                        "overwrite" (default) - replaces existing file content entirely
+                        "append" - adds content to the end of existing files
+                      enum:
+                      - overwrite
+                      - append
+                      type: string
+                  required:
+                  - content
+                  - path
+                  type: object
+                type: array
+              maxExecutionHistory:
+                default: 10
+                description: |-
+                  MaxExecutionHistory specifies how many execution records to keep in status
+                  Defaults to 10 if not specified
+                maximum: 100
+                minimum: 1
+                type: integer
+              repository:
+                type: string
+              resourceRefs:
+                items:
+                  properties:
+                    apiVersion:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    strategy:
+                      properties:
+                        fieldRef:
+                          properties:
+                            fileName:
+                              type: string
+                            key:
+                              type: string
+                          required:
+                          - key
+                          type: object
+                        path:
+                          type: string
+                        type:
+                          type: string
+                        writeMode:
+                          type: string
+                      required:
+                      - path
+                      - type
+                      type: object
+                  required:
+                  - apiVersion
+                  - kind
+                  - name
+                  - strategy
+                  type: object
+                type: array
+              restAPIs:
+                items:
+                  description: RestAPI defines configuration for REST API integration
+                  properties:
+                    authSecretKey:
+                      description: 'AuthSecretKey is the key in the auth secret (default:
+                        token)'
+                      type: string
+                    authSecretRef:
+                      description: AuthSecretRef references a secret containing authentication
+                        credentials
+                      type: string
+                    body:
+                      description: Body is the request body for POST/PUT/PATCH requests
+                      type: string
+                    expectedStatusCodes:
+                      description: |-
+                        ExpectedStatusCodes defines acceptable HTTP response codes
+                        If empty, defaults to [200, 201, 202, 204]
+                      items:
+                        type: integer
+                      maxItems: 10
+                      minItems: 1
+                      type: array
+                    headers:
+                      additionalProperties:
+                        type: string
+                      description: Headers contains HTTP headers to send with the
+                        request
+                      type: object
+                    maxStatusCode:
+                      default: 399
+                      description: |-
+                        MaxStatusCode is the maximum acceptable status code (default: 399)
+                        Responses >= this value will prevent the GitCommit/PullRequest from executing
+                      maximum: 599
+                      minimum: 100
+                      type: integer
+                    method:
+                      default: GET
+                      description: 'Method is the HTTP method to use (default: GET)'
+                      enum:
+                      - GET
+                      - POST
+                      - PUT
+                      - PATCH
+                      - DELETE
+                      - HEAD
+                      - OPTIONS
+                      type: string
+                    name:
+                      description: Name is a unique identifier for this REST API query
+                        within the resource
+                      maxLength: 63
+                      minLength: 1
+                      pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                      type: string
+                    responseParsing:
+                      description: ResponseParsing configures how to parse and use
+                        the JSON response
+                      properties:
+                        condition:
+                          description: |-
+                            Condition is a CEL expression that must evaluate to true for the operation to proceed
+                            The JSON response is available as 'response' variable
+                            Example: "response.status == 'success' && size(response.data.result) >= 2"
+                          type: string
+                        dataExpression:
+                          description: |-
+                            DataExpression is a CEL expression that extracts and transforms data from the response
+                            Should return a map with extracted values or a formatted string
+                            Example: "{'timestamp': string(response.data.result[0]), 'value': string(response.data.result[1])}"
+                          type: string
+                        outputFormat:
+                          description: |-
+                            OutputFormat is a CEL expression that formats the final output string
+                            The result of DataExpression is available as 'data' variable, current time as 'now'
+                            Example: "string(int(now)) + ',' + data.timestamp + ',' + data.value"
+                            If empty and DataExpression returns a string, that string is used directly
+                          type: string
+                      type: object
+                    timeoutSeconds:
+                      default: 30
+                      description: 'TimeoutSeconds is the request timeout in seconds
+                        (default: 30)'
+                      maximum: 300
+                      minimum: 1
+                      type: integer
+                    url:
+                      description: URL is the REST API endpoint to call
+                      pattern: ^https?://.*
+                      type: string
+                  required:
+                  - name
+                  - url
+                  type: object
+                type: array
+              schedule:
+                description: |-
+                  Schedule defines a cron expression for recurring commits
+                  Examples: "0 2 * * *" (daily at 2 AM), "@hourly", "@daily", "@weekly"
+                  When set, the resource will not be deleted and commits will be made on schedule
+                pattern: ^(@(annually|yearly|monthly|weekly|daily|hourly))|(@every
+                  (\d+(ns|us|µs|ms|s|m|h))+)|(((\d+,)+\d+|(\d+([/-])\d+)|\d+|\*) +){4}((\d+,)+\d+|(\d+([/-])\d+)|\d+|\*)$
+                type: string
+              suspend:
+                description: Suspend will suspend execution when set to true. Execution
+                  will resume when set to false.
+                type: boolean
+              ttlMinutes:
+                maximum: 43200
+                minimum: 1
+                type: integer
+            required:
+            - authSecretRef
+            - branch
+            - commitMessage
+            - repository
+            type: object
+          status:
+            properties:
+              commitSHA:
+                type: string
+              executionHistory:
+                description: ExecutionHistory keeps track of the last N executions
+                  (configurable via spec.maxExecutionHistory)
+                items:
+                  description: ExecutionRecord tracks a single execution of a scheduled
+                    GitCommit
+                  properties:
+                    commitSHA:
+                      description: CommitSHA is the resulting commit SHA
+                      type: string
+                    executionTime:
+                      description: ExecutionTime is when the commit was executed
+                      format: date-time
+                      type: string
+                    message:
+                      description: Message contains any error or status message
+                      type: string
+                    phase:
+                      description: Phase indicates the result of this execution
+                      type: string
+                  required:
+                  - executionTime
+                  - phase
+                  type: object
+                type: array
+              lastScheduledTime:
+                description: LastScheduledTime is when the resource was last scheduled
+                  for execution
+                format: date-time
+                type: string
+              lastSync:
+                format: date-time
+                type: string
+              message:
+                type: string
+              nextScheduledTime:
+                description: NextScheduledTime is when the resource will be executed
+                  next
+                format: date-time
+                type: string
+              phase:
+                type: string
+              restAPIStatuses:
+                items:
+                  description: RestAPIStatus tracks the status of REST API calls
+                  properties:
+                    callCount:
+                      description: CallCount is the total number of API calls made
+                      format: int64
+                      type: integer
+                    conditionMet:
+                      description: ConditionMet indicates if the CEL condition expression
+                        evaluated to true
+                      type: boolean
+                    extractedData:
+                      description: ExtractedData contains the JSON representation
+                        of data extracted by the CEL DataExpression
+                      type: string
+                    formattedOutput:
+                      description: FormattedOutput contains the final formatted string
+                        produced by the CEL OutputFormat expression
+                      type: string
+                    lastCallTime:
+                      description: LastCallTime is when the API was last called
+                      format: date-time
+                      type: string
+                    lastError:
+                      description: LastError is the error message from the last failed
+                        call
+                      type: string
+                    lastResponse:
+                      description: LastResponse is a truncated version of the last
+                        response body (max 1024 chars)
+                      type: string
+                    lastStatusCode:
+                      description: LastStatusCode is the HTTP status code from the
+                        last call
+                      type: integer
+                    name:
+                      description: Name identifies which REST API this status belongs
+                        to
+                      type: string
+                    successCount:
+                      description: SuccessCount is the number of successful API calls
+                      format: int64
+                      type: integer
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

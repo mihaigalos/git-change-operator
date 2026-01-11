@@ -5,11 +5,54 @@ This guide covers all configuration options for the Git Change Operator, from ba
 ## Overview
 
 The Git Change Operator can be configured at multiple levels:
-- **Operator-level** configuration via command-line flags and environment variables
+- **Operator-level** configuration via the `GitChangeOperator` CR (runtime configuration)
+- **Bootstrap-level** configuration via Helm values or Kustomize overlays (deployment time)
 - **Resource-level** configuration via GitCommit and PullRequest specs
 - **Cluster-level** configuration via ConfigMaps and other Kubernetes resources
 
 ## Operator Configuration
+
+### GitChangeOperator Custom Resource (Runtime Configuration)
+
+The recommended way to configure the operator at runtime is using the `GitChangeOperator` CR. This allows dynamic reconfiguration without redeploying Helm:
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitChangeOperator
+metadata:
+  name: git-change-operator-config
+  namespace: git-change-operator-system
+spec:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/mihaigalos/git-change-operator
+    tag: v1.2.0
+    pullPolicy: IfNotPresent
+  metrics:
+    enabled: true
+    service:
+      type: ClusterIP
+      port: 8080
+    serviceMonitor:
+      enabled: true
+      interval: "30s"
+      scrapeTimeout: "10s"
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - host: git-change-operator.example.com
+        paths:
+          - path: /metrics
+            pathType: Prefix
+```
+
+The operator reconciles changes to this CR and manages:
+- Metrics Service
+- ServiceMonitor (Prometheus)
+- Ingress
+
+See the [CRD Reference](../reference/crd-spec.md#gitchangeoperator-resource) for complete configuration options.
 
 ### Command Line Flags
 

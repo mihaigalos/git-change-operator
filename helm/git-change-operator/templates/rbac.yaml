@@ -1,3 +1,17 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "git-change-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "git-change-operator.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+---
 {{- if .Values.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -34,9 +48,57 @@ rules:
   - update
   - watch
 - apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - monitoring.coreos.com
+  resources:
+  - servicemonitors
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
   - gco.galos.one
   resources:
   - gitcommits
+  - pullrequests
+  - gitchangeoperators
   verbs:
   - create
   - delete
@@ -49,38 +111,16 @@ rules:
   - gco.galos.one
   resources:
   - gitcommits/finalizers
+  - pullrequests/finalizers
+  - gitchangeoperators/finalizers
   verbs:
   - update
 - apiGroups:
   - gco.galos.one
   resources:
   - gitcommits/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - gco.galos.one
-  resources:
-  - pullrequests
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - gco.galos.one
-  resources:
-  - pullrequests/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - gco.galos.one
-  resources:
   - pullrequests/status
+  - gitchangeoperators/status
   verbs:
   - get
   - patch
@@ -112,4 +152,19 @@ rules:
   - watch
 {{- end }}
 {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "git-change-operator.clusterRoleBindingName" . }}
+  labels:
+    {{- include "git-change-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "git-change-operator.clusterRoleName" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "git-change-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace | quote }}
 {{- end }}
