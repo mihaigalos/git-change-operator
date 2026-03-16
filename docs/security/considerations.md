@@ -3,6 +3,12 @@
 > [!WARNING]
 > The default RBAC configuration grants broad read permissions (`"*"`) across all API groups and resources. This is **NOT recommended for production environments**.
 
+## Container Image Security
+
+The operator uses a **hardened distroless base image** with no shell and minimal dependencies. Certificates are mounted via BuildKit secrets at build time and never embedded in image layers.
+
+Verify image security with: `just docker-verify`
+
 ## Production Deployment
 
 For production deployments, use the production values file with specific RBAC permissions:

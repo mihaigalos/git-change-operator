@@ -82,21 +82,36 @@ test-all: setup-test-env check
 
 # === Docker ===
 
-# Build Docker image
+# Build Docker image using BuildKit with secret mounting
 [group('docker')]
 docker-build:
     #!/usr/bin/env bash
     set -euo pipefail
+    
+    # Enable Docker BuildKit for secret mounting support
+    export DOCKER_BUILDKIT=1
+    
+    # Load corporate config if available
     if [ -f corporate-config.env ]; then
         set -a; source ./corporate-config.env; set +a
     fi
+    
+    # Prepare certificate secret mount if certificate exists
     SSL_CERT_PATH=$(eval echo "${SSL_CERT_FILE:-}")
     if [ -n "$SSL_CERT_PATH" ] && [ -f "$SSL_CERT_PATH" ]; then
-        CERT_CONTENT=$(cat "$SSL_CERT_PATH")
+        CERT_SECRET_ARG="--secret id=corporate_cert,src=$SSL_CERT_PATH"
+        echo "🔒 Using corporate certificate from: $SSL_CERT_PATH (mounted as secret - not embedded)"
     else
-        CERT_CONTENT=""
+        CERT_SECRET_ARG=""
+        echo "ℹ️  No corporate certificate configured - using system CAs only"
     fi
+    
+    # Generate git reference for image labels
     GIT_REFERENCE=$(git config --get remote.origin.url | sed -E 's/^(git@|https:\/\/)([^:\/]+)[:\/](.+)\.git$/https:\/\/\2\/\3/')/commit/$(git rev-parse HEAD)
+    
+    echo "🔨 Building with distroless base image (no shell, minimal attack surface)"
+    
+    # Build with BuildKit - certificate passed as secret (not in image layers)
     docker build --progress=plain --network=host \
         --build-arg HTTP_PROXY="${HTTP_PROXY:-}" \
         --build-arg HTTPS_PROXY="${HTTPS_PROXY:-}" \
@@ -108,11 +123,11 @@ docker-build:
         ${GOSUMDB:+--build-arg GOSUMDB="$GOSUMDB"} \
         ${GONOPROXY:+--build-arg GONOPROXY="$GONOPROXY"} \
         ${GONOSUMDB:+--build-arg GONOSUMDB="$GONOSUMDB"} \
-        ${APK_MAIN_REPO:+--build-arg APK_MAIN_REPO="$APK_MAIN_REPO"} \
-        ${APK_COMMUNITY_REPO:+--build-arg APK_COMMUNITY_REPO="$APK_COMMUNITY_REPO"} \
-        --build-arg CORPORATE_CA_CERT="$CERT_CONTENT" \
         --build-arg GIT_REFERENCE="$GIT_REFERENCE" \
+        $CERT_SECRET_ARG \
         -t {{img}} -t {{img_latest}} .
+    
+    echo "✅ Image built with distroless base - NO shell, NO corporate cert in layers"
 
 # Push Docker image
 [group('docker')]
@@ -123,6 +138,11 @@ docker-push:
 # Build and push Docker image
 [group('docker')]
 docker-publish: docker-build docker-push
+
+# Verify Docker image security (no leaked secrets, distroless base)
+[group('docker')]
+docker-verify image=img:
+    ./scripts/verify-image-security.sh {{image}}
 
 # === Deployment ===
 

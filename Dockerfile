@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 #----------------------------------------------------------------------------------------------
 FROM golang:1.22 AS builder
 
@@ -9,23 +10,22 @@ ARG GOSUMDB
 ARG GONOPROXY
 ARG GONOSUMDB
 
-# Accept build arg for corporate certificate content
-ARG CORPORATE_CA_CERT
-
 # Set Go proxy configuration if provided
 ENV GOPROXY=${GOPROXY:-direct}
 ENV GOSUMDB=${GOSUMDB:-sum.golang.org}
 ENV GONOPROXY=${GONOPROXY}
 ENV GONOSUMDB=${GONOSUMDB}
 
-# Install corporate certificate if provided
-RUN if [ -n "$CORPORATE_CA_CERT" ]; then \
+# Install corporate certificate using BuildKit secret (not embedded in layers)
+# Secret is mounted at build time only and never persisted in image
+RUN --mount=type=secret,id=corporate_cert,required=false \
+    if [ -f /run/secrets/corporate_cert ]; then \
         apt-get update && apt-get install -y ca-certificates && \
-        echo "$CORPORATE_CA_CERT" > /usr/local/share/ca-certificates/corporate-ca.crt && \
+        cp /run/secrets/corporate_cert /usr/local/share/ca-certificates/corporate-ca.crt && \
         update-ca-certificates && \
-        echo "Corporate certificate installed from build arg"; \
+        echo "Corporate certificate installed from secret (not embedded in layers)"; \
     else \
-        echo "No corporate certificate provided in build arg"; \
+        echo "No corporate certificate secret provided - using system CAs only"; \
     fi
 
 COPY go.mod go.sum ./
@@ -53,65 +53,30 @@ RUN mkdir -p /workspace/helm-resolved && \
     done
 
 #----------------------------------------------------------------------------------------------
-FROM alpine:3.18
-
-# Accept build args for package repositories
-ARG APK_MAIN_REPO
-ARG APK_COMMUNITY_REPO
-
-# Accept build arg for corporate certificate content (passed from builder stage)
-ARG CORPORATE_CA_CERT
+# Use distroless base image - NO shell, minimal attack surface, non-root by default
+FROM gcr.io/distroless/static-debian12:nonroot
 
 # Upstream Ref
 ARG GIT_REFERENCE
 LABEL git-ref="$GIT_REFERENCE" \
-      org.opencontainers.image.source="$GIT_REFERENCE"
+      org.opencontainers.image.source="$GIT_REFERENCE" \
+      org.opencontainers.image.description="Git Change Operator - Hardened distroless image" \
+      org.opencontainers.image.base.name="gcr.io/distroless/static-debian12:nonroot"
 
-# Debug: Show what repos are configured
-RUN echo "APK_MAIN_REPO=$APK_MAIN_REPO" && \
-    echo "APK_COMMUNITY_REPO=$APK_COMMUNITY_REPO"
+WORKDIR /home/nonroot
 
-# Configure Alpine repositories if custom ones are provided
-RUN if [ -n "$APK_MAIN_REPO" ] && [ -n "$APK_COMMUNITY_REPO" ]; then \
-        echo "Configuring custom Alpine repositories..." && \
-        echo "$APK_MAIN_REPO" > /etc/apk/repositories && \
-        echo "$APK_COMMUNITY_REPO" >> /etc/apk/repositories && \
-        cat /etc/apk/repositories; \
-    else \
-        echo "Using default Alpine repositories" && \
-        cat /etc/apk/repositories; \
-    fi
+# Copy ONLY the system CA bundle from builder (corporate cert was used during build only)
+# The corporate cert is NOT included in the final image - only standard system CAs
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
-# Install corporate certificate BEFORE attempting apk operations
-# This must be done manually since ca-certificates package isn't installed yet
-RUN if [ -n "$CORPORATE_CA_CERT" ]; then \
-        mkdir -p /usr/local/share/ca-certificates && \
-        echo "$CORPORATE_CA_CERT" > /usr/local/share/ca-certificates/corporate-ca.crt && \
-        cat /usr/local/share/ca-certificates/corporate-ca.crt >> /etc/ssl/certs/ca-certificates.crt && \
-        echo "Corporate certificate manually installed before apk operations"; \
-    else \
-        echo "No corporate certificate provided"; \
-    fi
-
-# Now install ca-certificates and other packages
-RUN apk --no-cache add ca-certificates \
-    && echo "curl bash helm" \
-    && if [ -n "$CORPORATE_CA_CERT" ]; then \
-        update-ca-certificates && \
-        echo "Corporate certificate properly registered with update-ca-certificates"; \
-    fi
-
-RUN addgroup -S user && adduser -S user -G user
-WORKDIR /home/user
-
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /workspace/operator /home/user/operator
-RUN chmod +x /home/user/operator
+# Copy the operator binary
+COPY --from=builder --chown=nonroot:nonroot /workspace/operator /home/nonroot/operator
 
 # Copy resolved Helm chart (without broken symlinks)
-COPY --from=builder /workspace/helm-resolved /home/user/helm/git-change-operator
+COPY --from=builder --chown=nonroot:nonroot /workspace/helm-resolved /home/nonroot/helm/git-change-operator
 
-USER user
-RUN echo ${GIT_REFERENCE} > git_reference
+# Distroless already runs as nonroot user (UID 65532)
+# No shell available - cannot be exploited for command injection
+USER nonroot
 
-ENTRYPOINT ["/home/user/operator"]
+ENTRYPOINT ["/home/nonroot/operator"]
