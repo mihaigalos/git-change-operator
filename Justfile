@@ -304,7 +304,7 @@ kind-test:
     kubectl get gitcommit test-commit-{{chart_version}} -n git-change-operator --context kind-git-change-operator || true
     echo ""
     echo "6️⃣ Checking operator logs (last 30 lines via crictl)..."
-    CONTAINER_ID=$(docker exec git-change-operator-control-plane crictl ps -a | grep 'manager.*Running' | head -1 | awk '{print $1}')
+    CONTAINER_ID=$(docker exec git-change-operator-control-plane crictl ps | grep 'git-change-operator-controller-manager' | awk '{print $1}')
     if [ -n "$CONTAINER_ID" ]; then
         docker exec git-change-operator-control-plane crictl logs --tail 30 $CONTAINER_ID | tail -35
     else
