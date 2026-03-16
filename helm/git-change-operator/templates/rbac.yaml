@@ -14,9 +14,10 @@ metadata:
 ---
 {{- if .Values.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: {{ include "git-change-operator.clusterRoleName" . }}
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "git-change-operator.labels" . | nindent 4 }}
 rules:
@@ -35,6 +36,18 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
 - apiGroups:
   - coordination.k8s.io
   resources:
@@ -154,14 +167,15 @@ rules:
 {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: {{ include "git-change-operator.clusterRoleBindingName" . }}
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "git-change-operator.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: {{ include "git-change-operator.clusterRoleName" . }}
 subjects:
 - kind: ServiceAccount

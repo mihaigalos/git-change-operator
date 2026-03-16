@@ -231,9 +231,9 @@ kind-restart:
     kubectl scale deployment git-change-operator-controller-manager --replicas=1 -n git-change-operator --context kind-git-change-operator
     echo "✅ Restarted!"
 
-# Build and test in Kind (build + load + restart)
+# Build and test in Kind (build + verify + load + restart)
 [group('kind')]
-kind-dev: docker-build kind-load-image kind-restart
+kind-dev: docker-build docker-verify kind-load-image kind-restart
     @echo "🎉 Ready! Monitor: kubectl logs -f deployment/git-change-operator-controller-manager -n git-change-operator --context kind-git-change-operator"
 
 # Show Kind cluster status
@@ -251,9 +251,74 @@ kind-status:
     echo ""; echo "📝 GitCommits:"
     kubectl get gitcommit -n git-change-operator --context kind-git-change-operator || echo "None found"
 
-# Complete Kind setup (create + deploy + token + dev)
+# Test GitChangeOperator functionality in Kind
 [group('kind')]
-kind-up: kind-create kind-deploy kind-setup-token kind-dev kind-status
+kind-test:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export PATH="/opt/homebrew/bin:$PATH"
+    echo "🧪 Testing Git Change Operator in Kind..."
+    echo ""
+    echo "📋 Reloading CRDs..."
+    kubectl apply -f config/crd/bases/gco.galos.one_gitchangeoperators.yaml --context kind-git-change-operator
+    kubectl apply -f config/crd/bases/gco.galos.one_gitcommits.yaml --context kind-git-change-operator
+    kubectl apply -f config/crd/bases/gco.galos.one_pullrequests.yaml --context kind-git-change-operator
+    echo ""
+    echo "1️⃣ Checking operator pod..."
+    kubectl get pods -n git-change-operator --context kind-git-change-operator -l control-plane=controller-manager
+    echo ""
+    echo "2️⃣ Checking GitChangeOperator CR..."
+    kubectl get gitchangeoperator -n git-change-operator --context kind-git-change-operator || echo "⚠️  No GitChangeOperator CR found"
+    echo ""
+    echo "3️⃣ Checking metrics service..."
+    kubectl get svc -n git-change-operator --context kind-git-change-operator || echo "⚠️  No services found"
+    echo ""
+    echo "4️⃣ Creating test GitCommit to public repo..."
+    cat << 'EOF' | kubectl apply --context kind-git-change-operator -f -
+    apiVersion: gco.galos.one/v1
+    kind: GitCommit
+    metadata:
+      name: test-commit-{{chart_version}}
+      namespace: git-change-operator
+    spec:
+      repository: https://github.com/mihaigalos/test.git
+      branch: test-kind-{{chart_version}}
+      commitMessage: "Test from Kind cluster v{{chart_version}} - distroless image"
+      authSecretRef: git-credentials
+      authSecretKey: token
+      files:
+      - path: test-kind-{{chart_version}}.txt
+        content: |
+          # Test from Kind Cluster
+          
+          Version: {{chart_version}}
+          Image: {{img}}
+          Security:
+          - Distroless base (no shell)
+          - BuildKit secrets (cert not in layers)
+          - Non-root user (UID 65532)
+    EOF
+    echo ""
+    echo "5️⃣ Monitoring GitCommit status (5s)..."
+    sleep 5
+    kubectl get gitcommit test-commit-{{chart_version}} -n git-change-operator --context kind-git-change-operator || true
+    echo ""
+    echo "6️⃣ Checking operator logs (last 30 lines via crictl)..."
+    CONTAINER_ID=$(docker exec git-change-operator-control-plane crictl ps -a | grep 'manager.*Running' | head -1 | awk '{print $1}')
+    if [ -n "$CONTAINER_ID" ]; then
+        docker exec git-change-operator-control-plane crictl logs --tail 30 $CONTAINER_ID | tail -35
+    else
+        echo "⚠️  Could not find running manager container"
+    fi
+    echo ""
+    echo "✅ Test complete!"
+    echo ""
+    echo "📝 View details: kubectl describe gitcommit test-commit-{{chart_version}} -n git-change-operator --context kind-git-change-operator"
+    echo "📝 Watch logs: CONTAINER_ID=\$(docker exec git-change-operator-control-plane crictl ps | grep manager | awk '{print \$1}') && docker exec git-change-operator-control-plane crictl logs -f \$CONTAINER_ID"
+
+# Complete Kind setup (create + deploy + token + dev + test)
+[group('kind')]
+kind-up: kind-create kind-deploy kind-setup-token kind-dev kind-test kind-status
     @echo ""; echo "🎉 Kind cluster ready!"
     @echo "Apply example: kubectl apply -f examples/gitcommit_example.yaml --context kind-git-change-operator"
 

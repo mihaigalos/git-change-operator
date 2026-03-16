@@ -5,9 +5,10 @@ metadata:
   namespace: git-change-operator-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: git-change-operator-manager-role
+  namespace: git-change-operator-system
 rules:
 - apiGroups:
   - ""
@@ -24,6 +25,18 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
 - apiGroups:
   - coordination.k8s.io
   resources:
@@ -114,25 +127,15 @@ rules:
   - get
   - patch
   - update
-# WARNING: Broad read permissions - NOT recommended for production
-# Use Helm chart with specific permissions instead
-# See: helm/git-change-operator/values.yaml -> rbac.additionalReadPermissions
-- apiGroups:
-  - "*"
-  resources:
-  - "*"
-  verbs:
-  - get
-  - list
-  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: git-change-operator-manager-rolebinding
+  namespace: git-change-operator-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: git-change-operator-manager-role
 subjects:
 - kind: ServiceAccount
