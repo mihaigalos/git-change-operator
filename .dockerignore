@@ -1,0 +1,65 @@
+# Git
+.git/
+.gitignore
+.github/
+
+# Documentation
+docs/
+*.md
+!README.md
+mkdocs.yml
+
+# Build artifacts
+bin/
+dist/
+*.tar
+*.tar.gz
+
+# Testing
+test/
+*.test
+coverage.out
+coverage.html
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/
+
+# Development
+Justfile
+kind-config.yaml
+examples/
+*.example
+
+# Sensitive
+corporate-config.env
+token
+*.pem
+*.key
+*.crt
+id_rsa*
+!*.pub
+
+# Kubernetes
+config/samples/
+config/rbac/
+test-*.yaml
+
+# Helm (exclude everything except what's explicitly copied)
+helm/
+!helm/git-change-operator/
+
+# Misc
+CNAME
+LICENSE
+requirements.txt
+setup-corporate-env.sh

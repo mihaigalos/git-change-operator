@@ -67,6 +67,12 @@ jobs:
         NO_PROXY: ""
         SSL_CERT_FILE: ""
 
+    - name: Verify Docker image security
+      run: just docker-verify
+      env:
+        # Fail the build if security checks fail
+        DOCKER_VERIFY_STRICT: "true"
+
     - name: Extract chart versions
       id: chart-versions
       run: |

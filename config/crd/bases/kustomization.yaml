@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
 - latest/gco.galos.one_gitcommits.yaml
 - latest/gco.galos.one_pullrequests.yaml
+- latest/gco.galos.one_gitchangeoperators.yaml

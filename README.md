@@ -11,6 +11,7 @@ Docs: https://gco.galos.one
 
 ## Features
 
+- **Operator-Managed Deployment**: Deploy using the `GitChangeOperator` CR that manages all operator resources
 - **Direct File Commits**: Commit static file content to Git repositories
 - **Resource References**: Reference arbitrary Kubernetes resources and commit their data
 - **REST API Integration**: Fetch data from REST APIs with CEL-based response processing
@@ -25,6 +26,56 @@ Docs: https://gco.galos.one
 - **Git Operations**: Support for both direct commits and pull requests
 - **File Encryption**: Age-based encryption with support for SSH keys, age keys, and passphrases
 - **Secure Authentication**: Uses Kubernetes Secrets for Git authentication
+
+## Installation
+
+### Bootstrap Deployment
+
+Install the operator using Helm or Kustomize:
+
+**Helm (Production):**
+```bash
+helm repo add git-change-operator https://mihaigalos.github.io/git-change-operator
+helm install git-change-operator git-change-operator/git-change-operator
+```
+
+**Kustomize (Development):**
+```bash
+kubectl apply -k config/
+# or: just install
+```
+
+This deploys the bootstrap resources:
+- Operator Deployment with ServiceAccount
+- ClusterRole and ClusterRoleBinding (RBAC)
+- CRDs (GitCommit, PullRequest, GitChangeOperator)
+
+### Optional: Configure Operator Runtime
+
+Create a `GitChangeOperator` CR to dynamically configure the running operator:
+
+```yaml
+apiVersion: gco.galos.one/v1
+kind: GitChangeOperator
+metadata:
+  name: git-change-operator-config
+  namespace: git-change-operator-system
+spec:
+  replicaCount: 2  # Scale operator
+  image:
+    repository: ghcr.io/mihaigalos/git-change-operator
+    tag: v1.2.0  # Update image version
+  metrics:
+    enabled: true
+```
+
+The `GitChangeOperator` CR allows runtime reconfiguration without redeploying Helm.
+
+**Architecture:**
+- **config/** → Dev deployment with Kustomize (symlinked to helm CRDs)
+- **helm/** → Production Helm chart (published to helm-chart branch)
+- **GitChangeOperator CR** → Optional runtime configuration
+- **GitCommit/PullRequest CRs** → Main user-facing resources for git operations
 
 ## Minimal demo
 ```yaml

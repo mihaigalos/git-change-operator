@@ -1,14 +1,25 @@
+{{- if .Values.serviceAccount.create -}}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: git-change-operator
-  namespace: git-change-operator-system
+  name: {{ include "git-change-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "git-change-operator.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
 ---
+{{- if .Values.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: git-change-operator-manager-role
-  namespace: git-change-operator-system
+  name: {{ include "git-change-operator.clusterRoleName" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "git-change-operator.labels" . | nindent 4 }}
 rules:
 - apiGroups:
   - ""
@@ -127,17 +138,47 @@ rules:
   - get
   - patch
   - update
+{{- if .Values.rbac.additionalReadPermissions.enableWildcard }}
+# WARNING: Broad read permissions - NOT recommended for production
+- apiGroups:
+  - "*"
+  resources:
+  - "*"
+  verbs:
+  - get
+  - list
+  - watch
+{{- else }}
+# Specific read permissions for Kubernetes resources
+{{- range .Values.rbac.additionalReadPermissions.specificPermissions }}
+- apiGroups:
+{{- range .apiGroups }}
+  - {{ . | quote }}
+{{- end }}
+  resources:
+{{- range .resources }}
+  - {{ . | quote }}
+{{- end }}
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: git-change-operator-manager-rolebinding
-  namespace: git-change-operator-system
+  name: {{ include "git-change-operator.clusterRoleBindingName" . }}
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "git-change-operator.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: git-change-operator-manager-role
+  name: {{ include "git-change-operator.clusterRoleName" . }}
 subjects:
 - kind: ServiceAccount
-  name: git-change-operator
-  namespace: git-change-operator-system
+  name: {{ include "git-change-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace | quote }}
+{{- end }}

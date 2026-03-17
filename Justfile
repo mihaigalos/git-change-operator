@@ -6,41 +6,39 @@ chart_version := `grep '^version:' helm/git-change-operator/Chart.yaml | cut -d'
 app_version := `grep '^appVersion:' helm/git-change-operator/Chart.yaml | cut -d' ' -f2 | tr -d '"'`
 img := "ghcr.io/mihaigalos/git-change-operator:" + app_version + "-" + chart_version
 img_latest := "ghcr.io/mihaigalos/git-change-operator:latest"
-
-# Test variables
 setup_envtest_index := "https://raw.githubusercontent.com/kubernetes-sigs/controller-tools/HEAD/envtest-releases.yaml"
 
 # Display this help message
+[group('help')]
 help:
     @just --list
 
 # === Development ===
 
-# Format Go code
-fmt:
+# Format and lint Go code
+[group('dev')]
+check:
     go fmt ./...
-
-# Run go vet
-vet:
     go vet ./...
 
-# Generate CRDs and RBAC manifests
-manifests:
-    controller-gen crd:crdVersions=v1 rbac:roleName=manager-role paths=./... output:crd:artifacts:config=config/crd/bases/v1 output:rbac:artifacts:config=config/rbac
-
-# Generate Go code (deepcopy, etc.)
-generate:
+# Generate CRDs and DeepCopy code
+[group('dev')]
+codegen:
+    controller-gen crd paths="./api/v1" output:crd:artifacts:config=config/crd/bases
     controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the manager binary
-build: fmt vet
+[group('dev')]
+build: check
     go build -o bin/manager main.go
 
 # Run the manager locally
-run: fmt vet
+[group('dev')]
+run: check
     go run ./main.go
 
 # Clean up generated files and binaries
+[group('dev')]
 clean:
     chmod -R +w bin/ 2>/dev/null || true
     rm -rf bin/
@@ -48,76 +46,72 @@ clean:
 
 # === Testing ===
 
-# Run unit tests (default)
-test: test-unit
-
-# Run unit tests only
-test-unit: fmt vet
+# Run unit tests
+[group('test')]
+test: check
     go test -v ./test/unit/...
 
-# Set up test environment (install tools and kubebuilder binaries)
+# Set up test environment (kubebuilder binaries and tools)
+[group('test')]
 setup-test-env:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Installing setup-envtest tool..."
+    echo "Installing tools..."
     go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-    echo "Installing controller-gen tool..."
     go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
-    echo "Creating kubebuilder binary directory..."
     mkdir -p ./bin/kubebuilder
-    echo "Downloading kubebuilder binaries..."
     setup-envtest use --index "{{setup_envtest_index}}" --bin-dir ./bin/kubebuilder
-    echo "Generating test SSH key pair if not present..."
-    test -f test/resources/id_rsa_4096 || ssh-keygen -t rsa -b 4096 -f test/resources/id_rsa_4096 -N "" -C "test-key-for-git-change-operator"
+    test -f test/resources/id_rsa_4096 || ssh-keygen -t rsa -b 4096 -f test/resources/id_rsa_4096 -N "" -C "test-key"
 
-# Run integration tests (requires kubebuilder setup)
-test-integration: setup-test-env fmt vet
+# Run integration tests
+[group('test')]
+test-integration: setup-test-env check
     #!/usr/bin/env bash
     set -euo pipefail
     KUBEBUILDER_ASSETS=$(setup-envtest use -p path --bin-dir $(pwd)/bin/kubebuilder)
-    echo "Using KUBEBUILDER_ASSETS: $KUBEBUILDER_ASSETS"
     KUBEBUILDER_ASSETS=$KUBEBUILDER_ASSETS go test -v ./test/integration/...
 
 # Run all tests (unit + integration)
-test-all: setup-test-env fmt vet
+[group('test')]
+test-all: setup-test-env check
     #!/usr/bin/env bash
     set -euo pipefail
     KUBEBUILDER_ASSETS=$(setup-envtest use -p path --bin-dir $(pwd)/bin/kubebuilder)
-    echo "Using KUBEBUILDER_ASSETS: $KUBEBUILDER_ASSETS"
-    echo "Running unit tests..."
     go test -v ./test/unit/...
-    echo "Running integration tests..."
     KUBEBUILDER_ASSETS=$KUBEBUILDER_ASSETS go test -v ./test/integration/...
 
-# === Build and Deploy ===
+# === Docker ===
 
-# Build docker image
+# Build Docker image using BuildKit with secret mounting
+[group('docker')]
 docker-build:
     #!/usr/bin/env bash
     set -euo pipefail
-    # Source corporate config if present
+    
+    # Enable Docker BuildKit for secret mounting support
+    export DOCKER_BUILDKIT=1
+    
+    # Load corporate config if available
     if [ -f corporate-config.env ]; then
-        echo "Found corporate-config.env, sourcing it..."
-        set -a
-        source ./corporate-config.env
-        set +a
-    else
-        echo "corporate-config.env not found, proceeding without it"
+        set -a; source ./corporate-config.env; set +a
     fi
     
-    # Read corporate certificate if configured
+    # Prepare certificate secret mount if certificate exists
     SSL_CERT_PATH=$(eval echo "${SSL_CERT_FILE:-}")
     if [ -n "$SSL_CERT_PATH" ] && [ -f "$SSL_CERT_PATH" ]; then
-        echo "Reading corporate certificate content from $SSL_CERT_PATH..."
-        CERT_CONTENT=$(cat "$SSL_CERT_PATH")
+        CERT_SECRET_ARG="--secret id=corporate_cert,src=$SSL_CERT_PATH"
+        echo "🔒 Using corporate certificate from: $SSL_CERT_PATH (mounted as secret - not embedded)"
     else
-        echo "No corporate certificate configured or found, using system certificates"
-        CERT_CONTENT=""
+        CERT_SECRET_ARG=""
+        echo "ℹ️  No corporate certificate configured - using system CAs only"
     fi
     
-    echo "Building Docker image with proxy configuration..."
+    # Generate git reference for image labels
     GIT_REFERENCE=$(git config --get remote.origin.url | sed -E 's/^(git@|https:\/\/)([^:\/]+)[:\/](.+)\.git$/https:\/\/\2\/\3/')/commit/$(git rev-parse HEAD)
     
+    echo "🔨 Building with distroless base image (no shell, minimal attack surface)"
+    
+    # Build with BuildKit - certificate passed as secret (not in image layers)
     docker build --progress=plain --network=host \
         --build-arg HTTP_PROXY="${HTTP_PROXY:-}" \
         --build-arg HTTPS_PROXY="${HTTPS_PROXY:-}" \
@@ -129,276 +123,311 @@ docker-build:
         ${GOSUMDB:+--build-arg GOSUMDB="$GOSUMDB"} \
         ${GONOPROXY:+--build-arg GONOPROXY="$GONOPROXY"} \
         ${GONOSUMDB:+--build-arg GONOSUMDB="$GONOSUMDB"} \
-        ${APK_MAIN_REPO:+--build-arg APK_MAIN_REPO="$APK_MAIN_REPO"} \
-        ${APK_COMMUNITY_REPO:+--build-arg APK_COMMUNITY_REPO="$APK_COMMUNITY_REPO"} \
-        --build-arg CORPORATE_CA_CERT="$CERT_CONTENT" \
         --build-arg GIT_REFERENCE="$GIT_REFERENCE" \
+        $CERT_SECRET_ARG \
         -t {{img}} -t {{img_latest}} .
+    
+    echo "✅ Image built with distroless base - NO shell, NO corporate cert in layers"
 
-# Push docker image
+# Push Docker image
+[group('docker')]
 docker-push:
     docker push {{img}}
     docker push {{img_latest}}
 
-# Install CRDs and RBAC to the cluster
+# Build and push Docker image
+[group('docker')]
+docker-publish: docker-build docker-push
+
+# Verify Docker image security (no leaked secrets, distroless base)
+[group('docker')]
+docker-verify image=img:
+    ./scripts/verify-image-security.sh {{image}}
+
+# === Deployment ===
+
+# Install operator to cluster (via Kustomize)
+[group('deploy')]
 install:
     kubectl apply -k config/
 
-# Uninstall CRDs and RBAC from the cluster
+# Uninstall operator from cluster
+[group('deploy')]
 uninstall:
     kubectl delete -k config/
 
-# Build, push and deploy to cluster
-deploy: docker-build docker-push install
+# Complete deployment workflow (build, push, install)
+[group('deploy')]
+deploy: docker-publish install
 
-# Undeploy from cluster
-undeploy: uninstall
+# === Kind Cluster ===
 
-# === Kind Development ===
-
-# Create Kind cluster with corporate proxy support
+# Create Kind cluster
+[group('kind')]
 kind-create:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "🚀 Creating Kind cluster with corporate CA support..."
-    if [ ! -f "~/certs/zscaler.pem" ]; then
-        echo "⚠️  Corporate CA certificate not found at ~/certs/zscaler.pem"
-        echo "   Continuing without corporate CA (cluster may have network issues)"
-    fi
-    # Delete existing cluster if present
+    echo "🚀 Creating Kind cluster..."
     kind delete cluster --name git-change-operator 2>/dev/null || true
     kind create cluster --name git-change-operator --config kind-config.yaml
-    echo "✅ Kind cluster created successfully!"
+    echo "✅ Cluster created!"
 
-# Deploy git-change-operator to Kind cluster
+# Deploy operator to Kind cluster
+[group('kind')]
 kind-deploy:
     #!/usr/bin/env bash
     set -euo pipefail
     export PATH="/opt/homebrew/bin:$PATH"
-    echo "🔧 Deploying git-change-operator to Kind cluster..."
-    echo "✅ Cluster status:"
+    echo "📦 Deploying operator..."
     kubectl cluster-info --context kind-git-change-operator
-    echo ""
-    echo "📦 Installing git-change-operator with conditional CRDs..."
     helm upgrade --install git-change-operator helm/git-change-operator \
         --namespace git-change-operator --create-namespace \
         --set crds.install=true \
         --kube-context kind-git-change-operator
-    echo "✅ Operator deployed successfully!"
+    echo "✅ Deployed!"
 
-# Interactively create GitHub token secret
-kube-setup-token context="kind-git-change-operator" namespace="git-change-operator":
+# Setup GitHub token secret
+[group('kind')]
+kind-setup-token:
     #!/usr/bin/env bash
     set -euo pipefail
     export PATH="/opt/homebrew/bin:$PATH"
-    echo "🔑 Setting up GitHub authentication..."
-    echo "Using context: {{context}}"
-    echo "Using namespace: {{namespace}}"
-    echo ""
-    
+    echo "🔑 Setting up GitHub token..."
     if [ -f "token" ]; then
-        echo "📄 Reading GitHub token from token file..."
         GITHUB_TOKEN=$(cat token)
     else
-        echo "Please enter your GitHub personal access token:"
-        read -s GITHUB_TOKEN
+        echo "Enter GitHub token:"; read -s GITHUB_TOKEN
     fi
-    
-    if [ -z "$GITHUB_TOKEN" ]; then
-        echo "❌ No token provided, skipping secret creation"
-        exit 1
-    fi
-    
-    echo ""
-    echo "Creating git-credentials secret in {{namespace}} namespace..."
+    [ -z "$GITHUB_TOKEN" ] && echo "❌ No token" && exit 1
     kubectl create secret generic git-credentials \
         --from-literal=token=$GITHUB_TOKEN \
-        --namespace {{namespace}} \
-        --context {{context}} \
+        --namespace git-change-operator \
+        --context kind-git-change-operator \
         --dry-run=client -o yaml | kubectl apply -f -
-    echo "✅ GitHub token secret created successfully!"
+    echo "✅ Token configured!"
 
-# Create GitHub token secret for Kind cluster
-kind-setup-token:
-    @just kube-setup-token kind-git-change-operator git-change-operator
-
-# Load local Docker image into Kind cluster
+# Load local image into Kind cluster
+[group('kind')]
 kind-load-image:
     #!/usr/bin/env bash
     set -euo pipefail
     export PATH="/opt/homebrew/bin:$PATH"
     export DOCKER_API_VERSION=1.43
-    echo "📦 Loading local operator image into Kind cluster..."
+    echo "📦 Loading image..."
     docker save {{img}} -o /tmp/operator-image.tar
     kind load image-archive /tmp/operator-image.tar --name git-change-operator
     rm -f /tmp/operator-image.tar
-    echo "✅ Image loaded into Kind cluster"
+    echo "✅ Image loaded!"
 
-# Restart operator deployment to pick up new image
-kind-restart-operator:
+# Restart operator in Kind
+[group('kind')]
+kind-restart:
     #!/usr/bin/env bash
     set -euo pipefail
     export PATH="/opt/homebrew/bin:$PATH"
-    echo "🔄 Restarting operator deployment..."
+    echo "🔄 Restarting operator..."
     kubectl scale deployment git-change-operator-controller-manager --replicas=0 -n git-change-operator --context kind-git-change-operator
     sleep 2
     kubectl scale deployment git-change-operator-controller-manager --replicas=1 -n git-change-operator --context kind-git-change-operator
-    echo "✅ Operator deployment restarted"
+    echo "✅ Restarted!"
 
-# Build operator image and test in Kind
-kind-build-and-test: docker-build kind-load-image kind-restart-operator
-    @echo "🎉 Operator built and loaded into Kind cluster!"
-    @echo "   Monitor operator startup: kubectl logs -f deployment/git-change-operator-controller-manager -n git-change-operator --context kind-git-change-operator"
+# Build and test in Kind (build + verify + load + restart)
+[group('kind')]
+kind-dev: docker-build docker-verify kind-load-image kind-restart
+    @echo "🎉 Ready! Monitor: kubectl logs -f deployment/git-change-operator-controller-manager -n git-change-operator --context kind-git-change-operator"
 
-# Show Kind cluster and operator status
+# Show Kind cluster status
+[group('kind')]
 kind-status:
     #!/usr/bin/env bash
     set -euo pipefail
     export PATH="/opt/homebrew/bin:$PATH"
-    echo "📊 Kind Cluster Status"
-    echo "======================"
-    
-    echo "🔗 Cluster Info:"
-    kubectl cluster-info --context kind-git-change-operator || echo "❌ Cluster not accessible"
-    echo ""
-    
-    echo "🏷️  Nodes:"
-    kubectl get nodes --context kind-git-change-operator || echo "❌ Cannot get nodes"
-    echo ""
-    
-    echo "🎯 Operator Pods:"
-    kubectl get pods -n git-change-operator --context kind-git-change-operator || echo "❌ Operator not deployed"
-    echo ""
-    
-    echo "🎯 GitCommits:"
-    kubectl get gitcommit -n git-change-operator --context kind-git-change-operator || echo "📝 No GitCommit resources found"
-    echo ""
-    
-    # Check detailed status if GitCommits exist
-    GITCOMMIT_NAME=$(kubectl get gitcommit -n git-change-operator --context kind-git-change-operator -o name 2>/dev/null | head -1)
-    if [ -n "$GITCOMMIT_NAME" ]; then
-        echo "🔍 GitCommit Status Details:"
-        kubectl get $GITCOMMIT_NAME -n git-change-operator --context kind-git-change-operator -o yaml | grep -A 10 "^status:"
-    fi
+    echo "📊 Status"; echo "=========="
+    kubectl cluster-info --context kind-git-change-operator || echo "❌ Not accessible"
+    echo ""; echo "🏷️  Nodes:"
+    kubectl get nodes --context kind-git-change-operator || echo "❌ No nodes"
+    echo ""; echo "🎯 Pods:"
+    kubectl get pods -n git-change-operator --context kind-git-change-operator || echo "❌ Not deployed"
+    echo ""; echo "📝 GitCommits:"
+    kubectl get gitcommit -n git-change-operator --context kind-git-change-operator || echo "None found"
 
-# Complete Kind demo workflow
-kind-full-demo: kind-create kind-deploy kind-setup-token kind-build-and-test kind-status
-    @echo ""
-    @echo "🎉 Complete Kind Demo Workflow Finished!"
-    @echo "========================================"
-    @echo ""
-    @echo "✅ Kind cluster created"
-    @echo "✅ git-change-operator deployed"
-    @echo "✅ GitHub token configured"
-    @echo "✅ Operator image built and loaded"
-    @echo ""
-    @echo "🔍 Next steps:"
-    @echo "   • Apply a GitCommit: kubectl apply -f examples/gitcommit_example.yaml --context kind-git-change-operator"
-    @echo "   • Monitor logs: kubectl logs -f deployment/git-change-operator-controller-manager -n git-change-operator --context kind-git-change-operator"
-    @echo "   • Clean up: just kind-destroy"
-
-# Delete Kind cluster
-kind-destroy:
+# Test GitChangeOperator functionality in Kind
+[group('kind')]
+kind-test:
     #!/usr/bin/env bash
-    echo "🧹 Cleaning up Kind cluster..."
-    kind delete cluster --name git-change-operator || echo "⚠️  Cluster already deleted"
-    echo "✅ Kind cluster cleaned up!"
+    set -euo pipefail
+    export PATH="/opt/homebrew/bin:$PATH"
+    echo "🧪 Testing Git Change Operator in Kind..."
+    echo ""
+    echo "📋 Reloading CRDs..."
+    kubectl apply -f config/crd/bases/gco.galos.one_gitchangeoperators.yaml --context kind-git-change-operator
+    kubectl apply -f config/crd/bases/gco.galos.one_gitcommits.yaml --context kind-git-change-operator
+    kubectl apply -f config/crd/bases/gco.galos.one_pullrequests.yaml --context kind-git-change-operator
+    echo ""
+    echo "1️⃣ Checking operator pod..."
+    kubectl get pods -n git-change-operator --context kind-git-change-operator -l control-plane=controller-manager
+    echo ""
+    echo "2️⃣ Checking GitChangeOperator CR..."
+    kubectl get gitchangeoperator -n git-change-operator --context kind-git-change-operator || echo "⚠️  No GitChangeOperator CR found"
+    echo ""
+    echo "3️⃣ Checking metrics service..."
+    kubectl get svc -n git-change-operator --context kind-git-change-operator || echo "⚠️  No services found"
+    echo ""
+    echo "4️⃣ Creating test GitCommit to public repo..."
+    cat << 'EOF' | kubectl apply --context kind-git-change-operator -f -
+    apiVersion: gco.galos.one/v1
+    kind: GitCommit
+    metadata:
+      name: test-commit-{{chart_version}}
+      namespace: git-change-operator
+    spec:
+      repository: https://github.com/mihaigalos/test.git
+      branch: test-kind-{{chart_version}}
+      commitMessage: "Test from Kind cluster v{{chart_version}} - distroless image"
+      authSecretRef: git-credentials
+      authSecretKey: token
+      files:
+      - path: test-kind-{{chart_version}}.txt
+        content: |
+          # Test from Kind Cluster
+          
+          Version: {{chart_version}}
+          Image: {{img}}
+          Security:
+          - Distroless base (no shell)
+          - BuildKit secrets (cert not in layers)
+          - Non-root user (UID 65532)
+    EOF
+    echo ""
+    echo "5️⃣ Monitoring GitCommit status (5s)..."
+    sleep 5
+    kubectl get gitcommit test-commit-{{chart_version}} -n git-change-operator --context kind-git-change-operator || true
+    echo ""
+    echo "6️⃣ Checking operator logs (last 30 lines via crictl)..."
+    CONTAINER_ID=$(docker exec git-change-operator-control-plane crictl ps | grep 'git-change-operator-controller-manager' | awk '{print $1}')
+    if [ -n "$CONTAINER_ID" ]; then
+        docker exec git-change-operator-control-plane crictl logs --tail 30 $CONTAINER_ID | tail -35
+    else
+        echo "⚠️  Could not find running manager container"
+    fi
+    echo ""
+    echo "✅ Test complete!"
+    echo ""
+    echo "📝 View details: kubectl describe gitcommit test-commit-{{chart_version}} -n git-change-operator --context kind-git-change-operator"
+    echo "📝 Watch logs: CONTAINER_ID=\$(docker exec git-change-operator-control-plane crictl ps | grep manager | awk '{print \$1}') && docker exec git-change-operator-control-plane crictl logs -f \$CONTAINER_ID"
+
+# Complete Kind setup (create + deploy + token + dev + test)
+[group('kind')]
+kind-up: kind-create kind-deploy kind-setup-token kind-dev kind-test kind-status
+    @echo ""; echo "🎉 Kind cluster ready!"
+    @echo "Apply example: kubectl apply -f examples/gitcommit_example.yaml --context kind-git-change-operator"
+
+# Destroy Kind cluster
+[group('kind')]
+kind-down:
+    #!/usr/bin/env bash
+    echo "🧹 Deleting cluster..."
+    kind delete cluster --name git-change-operator || echo "Already deleted"
+    echo "✅ Cleaned up!"
 
 # === Helm ===
 
-# Lint the Helm chart
+# Lint Helm chart
+[group('helm')]
 helm-lint:
     helm lint helm/git-change-operator
 
-# Generate Kubernetes manifests from Helm chart
+# Preview Helm manifests
+[group('helm')]
 helm-template:
     helm template git-change-operator helm/git-change-operator
 
-# Package the Helm chart
+# Package Helm chart
+[group('helm')]
 helm-package:
     helm package helm/git-change-operator -d helm/
 
-# Install the operator using Helm
+# Install via Helm
+[group('helm')]
 helm-install:
-    helm upgrade --install git-change-operator helm/git-change-operator --create-namespace --namespace git-change-operator-system
+    helm upgrade --install git-change-operator helm/git-change-operator \
+        --create-namespace --namespace git-change-operator-system
 
-# Uninstall the operator using Helm
+# Uninstall via Helm
+[group('helm')]
 helm-uninstall:
     helm uninstall git-change-operator --namespace git-change-operator-system
 
-# Build, push, package and deploy using Helm
-helm-deploy: docker-build docker-push helm-package helm-install
+# Deploy via Helm (build + push + package + install)
+[group('helm')]
+helm-deploy: docker-publish helm-package helm-install
 
 # === Documentation ===
 
-# Create Python virtual environment for documentation
-docs-venv:
+# Setup documentation environment
+[group('docs')]
+docs-setup:
     #!/usr/bin/env bash
     python3 -m venv docs/.venv
-    echo "Virtual environment created at docs/.venv"
-
-# Install documentation dependencies
-docs-deps: docs-venv
-    #!/usr/bin/env bash
     docs/.venv/bin/pip install --upgrade pip
     docs/.venv/bin/pip install -r docs/mkdocs/requirements.txt
 
-# Prepare README for MkDocs
-docs-prepare:
+# Serve documentation locally
+[group('docs')]
+docs-serve: docs-setup
     #!/usr/bin/env bash
-    echo "Backing up README.md and creating MkDocs-compatible version..."
     cp README.md README.md.bak
     sed -i.tmp 's|](docs/|](|g' README.md && rm README.md.tmp
-    echo "README.md prepared for MkDocs (backup at README.md.bak)"
-
-# Restore original README.md
-docs-restore:
-    #!/usr/bin/env bash
-    if [ -f README.md.bak ]; then
-        echo "Restoring original README.md..."
-        mv README.md.bak README.md
-        echo "README.md restored"
-    else
-        echo "No backup found, skipping restore"
-    fi
-
-# Serve documentation locally for development
-docs-serve: docs-deps docs-prepare
-    #!/usr/bin/env bash
     docs/.venv/bin/mkdocs serve || true
-    just docs-restore
+    mv README.md.bak README.md 2>/dev/null || true
 
-# Serve versioned documentation locally
-docs-serve-versioned: docs-deps docs-prepare
+# Build documentation
+[group('docs')]
+docs-build: docs-setup
     #!/usr/bin/env bash
-    source docs/.venv/bin/activate && mike serve --dev-addr=127.0.0.1:8001 || true
-    just docs-restore
-
-# Build documentation for production
-docs-build: docs-deps docs-prepare
-    #!/usr/bin/env bash
+    cp README.md README.md.bak
+    sed -i.tmp 's|](docs/|](|g' README.md && rm README.md.tmp
     docs/.venv/bin/mkdocs build
-    just docs-restore
+    mv README.md.bak README.md 2>/dev/null || true
 
 # Deploy documentation to GitHub Pages
-docs-deploy: docs-deps
+[group('docs')]
+docs-deploy: docs-setup
     docs/.venv/bin/mkdocs gh-deploy --force
 
-# Deploy a new version of documentation
-docs-version-deploy version: docs-deps docs-prepare
+# Deploy versioned documentation
+[group('docs')]
+docs-version version: docs-setup
     #!/usr/bin/env bash
+    cp README.md README.md.bak
+    sed -i.tmp 's|](docs/|](|g' README.md && rm README.md.tmp
     source docs/.venv/bin/activate && mike deploy --push --update-aliases {{version}} latest
-    just docs-restore
+    mv README.md.bak README.md 2>/dev/null || true
 
-# Set default version for documentation
-docs-version-set-default version: docs-deps
-    docs/.venv/bin/mike set-default --push {{version}}
-
-# List all deployed documentation versions
-docs-version-list: docs-deps
-    docs/.venv/bin/mike list
-
-# Clean built documentation and virtual environment
+# Clean documentation artifacts
+[group('docs')]
 docs-clean:
-    rm -rf site/
-    rm -rf docs/.venv/
+    rm -rf site/ docs/.venv/
+
+# === Legacy Aliases ===
+
+# Legacy alias for manifests (use 'codegen' instead)
+manifests: codegen
+
+# Legacy alias for vet (use 'check' instead)
+vet: check
+
+# Legacy alias for generate (use 'codegen' instead)
+generate: codegen
+
+# Legacy alias for test-unit (use 'test' instead)
+test-unit: test
+
+# Legacy alias for kind-build-and-test (use 'kind-dev' instead)
+kind-build-and-test: kind-dev
+
+# Legacy alias for kind-full-demo (use 'kind-up' instead)
+kind-full-demo: kind-up
+
+# Legacy alias for kind-destroy (use 'kind-down' instead)
+kind-destroy: kind-down
