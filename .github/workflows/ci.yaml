@@ -56,8 +56,8 @@ jobs:
         just vet
         git diff --exit-code --name-only -- '*.go'
       
-    - name: Run just vet
-      run: just vet
+    - name: Run helm lint
+      run: just helm-lint
 
     - name: Generate manifests and check for changes
       run: |
