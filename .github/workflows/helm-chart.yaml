@@ -60,10 +60,9 @@ jobs:
         git rm -rf . 2>/dev/null || true
         git clean -fdx
         
-        # Checkout helm chart and the config directory it depends on
+        # Checkout helm chart and the CRD files it depends on
         git checkout main -- helm/git-change-operator/
-        git checkout main -- config/crd/bases/latest/
-        git checkout main -- config/crd/bases/v1/
+        git checkout main -- config/crd/bases/*.yaml
         
     - name: Update Chart versions
       run: |
@@ -83,19 +82,19 @@ jobs:
         
         # Replace symlinks with actual CRD content BEFORE moving chart
         # This ensures each published chart version contains the CRDs from that specific version
-        find helm/git-change-operator/crd-files/ -type l | while read -r symlink; do
-          # Get the target file that the symlink points to
-          target_file=$(readlink -f "$symlink")
-          if [ -f "$target_file" ]; then
-            echo "Replacing symlink $symlink with actual content from $target_file"
+        # Use cp -L to automatically follow symlinks
+        cd helm/git-change-operator/crd-files/
+        for symlink in *.yaml; do
+          if [ -L "$symlink" ]; then
+            echo "Replacing symlink $symlink with actual content"
+            # cp -L follows symlinks automatically
+            cp -L "$symlink" "$symlink.tmp"
             rm -f "$symlink"
-            cp "$target_file" "$symlink"
+            mv "$symlink.tmp" "$symlink"
             echo "✓ Replaced $symlink"
-          else
-            echo "❌ Error: Target file $target_file not found for symlink $symlink"
-            exit 1
           fi
         done
+        cd ../../..
         
         # Debug: Verify replacement worked
         echo "=== After symlink replacement ==="
