@@ -114,13 +114,11 @@ jobs:
       run: |
         CHART_VERSION=$(yq eval '.version' helm/git-change-operator/Chart.yaml)
         echo "Deploying documentation version: ${CHART_VERSION}"
-        just docs-version-deploy ${CHART_VERSION}
-        just docs-version-set-default ${CHART_VERSION}
+        just docs-version ${CHART_VERSION}
         
     - name: Deploy release version
       if: github.event_name == 'release'
       run: |
         VERSION=${GITHUB_REF#refs/tags/}
         echo "Deploying release documentation version: ${VERSION}"
-        just docs-version-deploy ${VERSION}
-        just docs-version-set-default ${VERSION}
+        just docs-version ${VERSION}
