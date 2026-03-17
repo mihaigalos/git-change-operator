@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/ci.yaml)
 [![Docker Build](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/docker-build.yaml)
-[![Publish Helm Chart](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/helm-chart.yaml)
+
 [![Docs](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml/badge.svg)](https://github.com/mihaigalos/git-change-operator/actions/workflows/mkdocs.yaml)
 
 A Kubernetes operator that enables automated Git operations from within clusters. Commit files directly or reference existing Kubernetes resources (encrypt Secrets, ConfigMaps, etc.) and push them to Git repositories with flexible output strategies.
@@ -73,7 +73,7 @@ The `GitChangeOperator` CR allows runtime reconfiguration without redeploying He
 
 **Architecture:**
 - **config/** → Dev deployment with Kustomize (symlinked to helm CRDs)
-- **helm/** → Production Helm chart (published to helm-chart branch)
+- **helm/** → Production Helm chart (published via GitHub Releases)
 - **GitChangeOperator CR** → Optional runtime configuration
 - **GitCommit/PullRequest CRs** → Main user-facing resources for git operations
 

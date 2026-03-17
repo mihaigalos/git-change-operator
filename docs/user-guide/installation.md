@@ -20,7 +20,7 @@ The easiest way to install the Git Change Operator is using Helm:
 
 ```bash
 # Add the Helm repository
-helm repo add git-change-operator https://raw.githubusercontent.com/mihaigalos/git-change-operator/helm-chart/
+helm repo add git-change-operator https://mihaigalos.github.io/git-change-operator
 helm repo update
 
 # Install the operator

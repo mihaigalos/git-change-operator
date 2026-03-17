@@ -12,7 +12,7 @@ This Helm chart deploys the Git Change Operator, a Kubernetes operator for manag
 ### Add the repository
 
 ```bash
-helm repo add git-change-operator https://raw.githubusercontent.com/mihaigalos/git-change-operator/helm-chart/
+helm repo add git-change-operator https://mihaigalos.github.io/git-change-operator
 helm repo update
 ```
 

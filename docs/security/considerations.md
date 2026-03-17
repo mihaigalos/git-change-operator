@@ -15,7 +15,7 @@ For production deployments, use the production values file with specific RBAC pe
 
 ```bash
 # Add the Helm repository
-helm repo add git-change-operator https://raw.githubusercontent.com/mihaigalos/git-change-operator/helm-chart/
+helm repo add git-change-operator https://mihaigalos.github.io/git-change-operator
 helm repo update
 
 # Install with production security configuration
