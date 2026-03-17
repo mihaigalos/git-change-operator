@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Verify Docker image security and check for leaked secrets
+# All checks must pass or the script exits with error code 1
 
 set -euo pipefail
 
 IMG="${1:-ghcr.io/mihaigalos/git-change-operator:latest}"
+EXIT_CODE=0
 
 echo "🔍 Security Verification for: $IMG"
 echo "================================================"
@@ -30,11 +32,11 @@ else
 fi
 echo
 
-# 3. Check for secret mounts (should be present, but not content)
+# 3. Check for secret mounts (informational only - the critical check is #2 above)
 if docker history --no-trunc --format "{{.CreatedBy}}" "$IMG" | grep -q "mount=type=secret"; then
     echo "✅ BuildKit secret mount detected (secure method)"
 else
-    echo "⚠️  No secret mount found (may not have used corporate cert)"
+    echo "ℹ️  No secret mount found (cert not used or already validated in step 2)"
 fi
 echo
 
@@ -44,7 +46,9 @@ BASE=$(docker image inspect "$IMG" --format '{{index .Config.Labels "org.opencon
 if [[ "$BASE" == *"distroless"* ]]; then
     echo "✅ Using distroless base: $BASE"
 else
-    echo "⚠️  Not using distroless: $BASE"
+    echo "❌ Not using distroless base: $BASE"
+    echo "   Distroless images are required for minimal attack surface"
+    EXIT_CODE=1
 fi
 echo
 
@@ -61,6 +65,8 @@ if [ -z "$FOUND_SHELLS" ]; then
     echo "✅ No shell found in image (secure)"
 else
     echo "❌ Shell(s) found:$FOUND_SHELLS (security risk)"
+    echo "   Shells enable command injection attacks"
+    EXIT_CODE=1
 fi
 echo
 
@@ -70,7 +76,9 @@ USER_INFO=$(docker image inspect "$IMG" --format '{{.Config.User}}')
 if [[ "$USER_INFO" == "nonroot" ]] || [[ "$USER_INFO" == "65532" ]]; then
     echo "✅ Running as non-root user: $USER_INFO"
 else
-    echo "⚠️  User: $USER_INFO (expected nonroot or 65532)"
+    echo "❌ Not running as non-root user: $USER_INFO"
+    echo "   Expected 'nonroot' or '65532' for least privilege"
+    EXIT_CODE=1
 fi
 echo
 
@@ -81,7 +89,9 @@ echo "   Size: $SIZE"
 if docker image inspect "$IMG" --format '{{.Size}}' | awk '{exit ($1 > 150*1024*1024)}'; then
     echo "✅ Reasonable size (< 150 MB)"
 else
-    echo "⚠️  Large image size (consider optimization)"
+    echo "❌ Large image size: $SIZE (exceeds 150 MB limit)"
+    echo "   Large images increase attack surface and deployment time"
+    EXIT_CODE=1
 fi
 echo
 
@@ -95,15 +105,25 @@ echo
 echo "================================================"
 echo "📊 Security Summary"
 echo "================================================"
-echo "✅ BuildKit secrets used (no leaked credentials)"
-echo "✅ Distroless base image (minimal attack surface)"
-echo "✅ No shell (prevents command injection)"
-echo "✅ Non-root user (least privilege)"
-echo
-echo "🎉 Image is secure for production use!"
-echo
-echo "Next steps:"
-echo "  1. Run vulnerability scan: trivy image $IMG"
-echo "  2. Push to registry: just docker-push"
-echo "  3. Deploy to cluster: just kind-deploy"
-echo
+
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "✅ BuildKit secrets used (no leaked credentials)"
+    echo "✅ Distroless base image (minimal attack surface)"
+    echo "✅ No shell (prevents command injection)"
+    echo "✅ Non-root user (least privilege)"
+    echo "✅ Reasonable image size"
+    echo
+    echo "🎉 Image is secure for production use!"
+    echo
+    echo "Next steps:"
+    echo "  1. Run vulnerability scan: trivy image $IMG"
+    echo "  2. Push to registry: just docker-push"
+    echo "  3. Deploy to cluster: just kind-deploy"
+else
+    echo
+    echo "❌ Security verification FAILED!"
+    echo "   Fix the issues above before deploying to production"
+    echo
+fi
+
+exit $EXIT_CODE
