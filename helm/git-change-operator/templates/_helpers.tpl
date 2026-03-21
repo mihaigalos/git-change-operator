@@ -62,16 +62,16 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Create the name of the cluster role to use
+Create the name of the role to use
 */}}
-{{- define "git-change-operator.clusterRoleName" -}}
+{{- define "git-change-operator.roleName" -}}
 {{- printf "%s-manager-role" (include "git-change-operator.fullname" .) }}
 {{- end }}
 
 {{/*
-Create the name of the cluster role binding to use
+Create the name of the role binding to use
 */}}
-{{- define "git-change-operator.clusterRoleBindingName" -}}
+{{- define "git-change-operator.roleBindingName" -}}
 {{- printf "%s-manager-rolebinding" (include "git-change-operator.fullname" .) }}
 {{- end }}
 

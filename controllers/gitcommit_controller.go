@@ -44,6 +44,8 @@ type GitCommitReconciler struct {
 //+kubebuilder:rbac:groups=gco.galos.one,resources=gitcommits/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=gco.galos.one,resources=gitcommits/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+//+kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
 
 func (r *GitCommitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
