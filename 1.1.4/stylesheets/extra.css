@@ -1,0 +1,34 @@
+/* Custom CSS for Git Change Operator documentation */
+
+/* Fix repository name truncation - use highly specific selectors */
+.md-header__source .md-source[data-md-component="source"] .md-source__repository,
+.md-nav__source .md-source[data-md-component="source"] .md-source__repository,
+.md-source__repository {
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    max-width: none !important;
+    width: auto !important;
+    min-width: auto !important;
+}
+
+/* Ensure parent containers have enough space */
+.md-header__source,
+.md-nav__source {
+    min-width: 320px !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
+}
+
+.md-source[data-md-component="source"] {
+    max-width: none !important;
+    width: auto !important;
+}
+
+/* Force full text display with CSS content replacement as fallback */
+.md-source__repository:after {
+    content: " mihaigalos/git-change-operator" !important;
+    display: none !important;
+}
+
+/* Add any additional custom styling here if needed */
