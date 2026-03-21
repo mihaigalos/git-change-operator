@@ -65,12 +65,12 @@ func (r *GitChangeOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	// Reconcile RBAC
 	if gitChangeOperator.Spec.RBAC.Create {
-		if err := r.reconcileClusterRole(ctx, &gitChangeOperator); err != nil {
-			log.Error(err, "Failed to reconcile ClusterRole")
+		if err := r.reconcileRole(ctx, &gitChangeOperator); err != nil {
+			log.Error(err, "Failed to reconcile Role")
 			return ctrl.Result{}, err
 		}
-		if err := r.reconcileClusterRoleBinding(ctx, &gitChangeOperator); err != nil {
-			log.Error(err, "Failed to reconcile ClusterRoleBinding")
+		if err := r.reconcileRoleBinding(ctx, &gitChangeOperator); err != nil {
+			log.Error(err, "Failed to reconcile RoleBinding")
 			return ctrl.Result{}, err
 		}
 	}
@@ -173,12 +173,13 @@ func (r *GitChangeOperatorReconciler) reconcileServiceAccount(ctx context.Contex
 	return r.Update(ctx, sa)
 }
 
-func (r *GitChangeOperatorReconciler) reconcileClusterRole(ctx context.Context, gco *gitchangeoperatoriov1.GitChangeOperator) error {
-	crName := fmt.Sprintf("%s-manager-role", gco.Name)
+func (r *GitChangeOperatorReconciler) reconcileRole(ctx context.Context, gco *gitchangeoperatoriov1.GitChangeOperator) error {
+	roleName := fmt.Sprintf("%s-manager-role", gco.Name)
 
-	cr := &rbacv1.ClusterRole{
+	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: crName,
+			Name:      roleName,
+			Namespace: gco.Namespace,
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -211,41 +212,40 @@ func (r *GitChangeOperatorReconciler) reconcileClusterRole(ctx context.Context, 
 				Resources: []string{"gitcommits/status", "pullrequests/status", "gitchangeoperators/status"},
 				Verbs:     []string{"get", "patch", "update"},
 			},
-			{
-				APIGroups: []string{"*"},
-				Resources: []string{"*"},
-				Verbs:     []string{"get", "list", "watch"},
-			},
 		},
 	}
 
-	found := &rbacv1.ClusterRole{}
-	err := r.Get(ctx, client.ObjectKey{Name: cr.Name}, found)
+	if err := controllerutil.SetControllerReference(gco, role, r.Scheme); err != nil {
+		return err
+	}
+
+	found := &rbacv1.Role{}
+	err := r.Get(ctx, client.ObjectKey{Name: role.Name, Namespace: role.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		return r.Create(ctx, cr)
+		return r.Create(ctx, role)
 	} else if err != nil {
 		return err
 	}
 
-	// Update rules
-	found.Rules = cr.Rules
+	found.Rules = role.Rules
 	return r.Update(ctx, found)
 }
 
-func (r *GitChangeOperatorReconciler) reconcileClusterRoleBinding(ctx context.Context, gco *gitchangeoperatoriov1.GitChangeOperator) error {
-	crbName := fmt.Sprintf("%s-manager-rolebinding", gco.Name)
+func (r *GitChangeOperatorReconciler) reconcileRoleBinding(ctx context.Context, gco *gitchangeoperatoriov1.GitChangeOperator) error {
+	rbName := fmt.Sprintf("%s-manager-rolebinding", gco.Name)
 	saName := gco.Spec.ServiceAccount.Name
 	if saName == "" {
 		saName = fmt.Sprintf("%s-controller-manager", gco.Name)
 	}
 
-	crb := &rbacv1.ClusterRoleBinding{
+	rb := &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: crbName,
+			Name:      rbName,
+			Namespace: gco.Namespace,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
+			Kind:     "Role",
 			Name:     fmt.Sprintf("%s-manager-role", gco.Name),
 		},
 		Subjects: []rbacv1.Subject{
@@ -257,17 +257,19 @@ func (r *GitChangeOperatorReconciler) reconcileClusterRoleBinding(ctx context.Co
 		},
 	}
 
-	found := &rbacv1.ClusterRoleBinding{}
-	err := r.Get(ctx, client.ObjectKey{Name: crb.Name}, found)
+	if err := controllerutil.SetControllerReference(gco, rb, r.Scheme); err != nil {
+		return err
+	}
+
+	found := &rbacv1.RoleBinding{}
+	err := r.Get(ctx, client.ObjectKey{Name: rb.Name, Namespace: rb.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		return r.Create(ctx, crb)
+		return r.Create(ctx, rb)
 	} else if err != nil {
 		return err
 	}
 
-	// Update subjects and roleref
-	found.RoleRef = crb.RoleRef
-	found.Subjects = crb.Subjects
+	found.Subjects = rb.Subjects
 	return r.Update(ctx, found)
 }
 
