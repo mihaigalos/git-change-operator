@@ -7,6 +7,7 @@ app_version := `grep '^appVersion:' helm/git-change-operator/Chart.yaml | cut -d
 img := "ghcr.io/mihaigalos/git-change-operator:" + app_version + "-" + chart_version
 img_latest := "ghcr.io/mihaigalos/git-change-operator:latest"
 setup_envtest_index := "https://raw.githubusercontent.com/kubernetes-sigs/controller-tools/HEAD/envtest-releases.yaml"
+setup_envtest_k8s_version := "1.35.0"
 
 # Display this help message
 [group('help')]
@@ -48,21 +49,16 @@ clean:
 
 # === Testing ===
 
-# Run unit tests
-[group('test')]
-test: check
-    go test -v ./test/unit/...
-
 # Set up test environment (kubebuilder binaries and tools)
 [group('test')]
 setup-test-env:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Installing tools..."
-    go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-    go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
+    command -v setup-envtest &>/dev/null || go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+    command -v controller-gen &>/dev/null || go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
     mkdir -p ./bin/kubebuilder
-    setup-envtest use --index "{{setup_envtest_index}}" --bin-dir ./bin/kubebuilder
+    setup-envtest use {{setup_envtest_k8s_version}} --bin-dir ./bin/kubebuilder
     test -f test/resources/id_rsa_4096 || ssh-keygen -t rsa -b 4096 -f test/resources/id_rsa_4096 -N "" -C "test-key"
 
 # Run integration tests
@@ -70,15 +66,15 @@ setup-test-env:
 test-integration: setup-test-env check
     #!/usr/bin/env bash
     set -euo pipefail
-    KUBEBUILDER_ASSETS=$(setup-envtest use -p path --bin-dir $(pwd)/bin/kubebuilder)
+    KUBEBUILDER_ASSETS=$(setup-envtest use {{setup_envtest_k8s_version}} -p path --bin-dir $(pwd)/bin/kubebuilder)
     KUBEBUILDER_ASSETS=$KUBEBUILDER_ASSETS go test -v ./test/integration/...
 
 # Run all tests (unit + integration)
 [group('test')]
-test-all: setup-test-env check
+test: setup-test-env check
     #!/usr/bin/env bash
     set -euo pipefail
-    KUBEBUILDER_ASSETS=$(setup-envtest use -p path --bin-dir $(pwd)/bin/kubebuilder)
+    KUBEBUILDER_ASSETS=$(setup-envtest use {{setup_envtest_k8s_version}} -p path --bin-dir $(pwd)/bin/kubebuilder)
     go test -v ./test/unit/...
     KUBEBUILDER_ASSETS=$KUBEBUILDER_ASSETS go test -v ./test/integration/...
 
