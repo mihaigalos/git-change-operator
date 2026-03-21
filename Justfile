@@ -22,6 +22,8 @@ check:
     go vet ./...
 
 # Generate CRDs and DeepCopy code
+# Note: RBAC is manually maintained in config/rbac/rbac.yaml as namespace-scoped Role
+# (controller-gen only generates ClusterRole, which we don't use)
 [group('dev')]
 codegen:
     controller-gen crd paths="./api/v1" output:crd:artifacts:config=config/crd/bases

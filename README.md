@@ -47,7 +47,7 @@ kubectl apply -k config/
 
 This deploys the bootstrap resources:
 - Operator Deployment with ServiceAccount
-- ClusterRole and ClusterRoleBinding (RBAC)
+- Role and RoleBinding (namespace-scoped RBAC)
 - CRDs (GitCommit, PullRequest, GitChangeOperator)
 
 ### Optional: Configure Operator Runtime

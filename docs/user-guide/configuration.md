@@ -447,9 +447,10 @@ spec:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: git-change-operator-manager-role
+  namespace: <namespace>
 rules:
 # GitCommit and PullRequest resources
 - apiGroups: ["gco.galos.one"]
@@ -472,9 +473,10 @@ rules:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: git-change-operator-extended-role
+  namespace: <namespace>
 rules:
 # Core resources
 - apiGroups: [""]
