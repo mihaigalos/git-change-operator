@@ -49,6 +49,19 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
@@ -138,19 +151,7 @@ rules:
   - get
   - patch
   - update
-{{- if .Values.rbac.additionalReadPermissions.enableWildcard }}
-# WARNING: Broad read permissions - NOT recommended for production
-- apiGroups:
-  - "*"
-  resources:
-  - "*"
-  verbs:
-  - get
-  - list
-  - watch
-{{- else }}
-# Specific read permissions for Kubernetes resources
-{{- range .Values.rbac.additionalReadPermissions.specificPermissions }}
+{{- range .Values.rbac.extraRbac }}
 - apiGroups:
 {{- range .apiGroups }}
   - {{ . | quote }}
@@ -160,9 +161,8 @@ rules:
   - {{ . | quote }}
 {{- end }}
   verbs:
-  - get
-  - list
-  - watch
+{{- range .verbs }}
+  - {{ . | quote }}
 {{- end }}
 {{- end }}
 ---

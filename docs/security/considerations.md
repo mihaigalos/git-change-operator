@@ -27,30 +27,28 @@ helm install git-change-operator git-change-operator/git-change-operator \
 
 ## Custom RBAC Configuration
 
-The operator supports configurable RBAC permissions through Helm values. You can customize the permissions by setting:
+The operator supports extra RBAC rules via `rbac.extraRbac`. Use this to grant the operator read access to any Kubernetes resources that your `GitCommit`/`PullRequest` specs reference via `resourceRefs`. By default the list is empty (no extra permissions).
 
 ```yaml
 rbac:
-  additionalReadPermissions:
-    # Disable wildcard permissions for production
-    enableWildcard: false
-    
-    # Grant only specific permissions needed
-    specificPermissions:
-      - apiGroups: [""]
-        resources: ["configmaps", "secrets", "pods"]
-      - apiGroups: ["apps"] 
-        resources: ["deployments", "replicasets"]
-      - apiGroups: ["networking.k8s.io"]
-        resources: ["ingresses"]
+  extraRbac:
+    - apiGroups: [""]
+      resources: ["configmaps", "pods"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["apps"]
+      resources: ["deployments", "replicasets"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["networking.k8s.io"]
+      resources: ["ingresses"]
+      verbs: ["get", "list", "watch"]
 ```
 
 ## Principle of Least Privilege
 
 The operator only needs **read access** to resources that GitCommit and PullRequest resources reference. Follow these guidelines:
 
-1. **Start minimal**: Begin with no additional permissions
-2. **Add incrementally**: Add specific permissions only as needed
+1. **Start minimal**: Begin with `extraRbac: []` (the default)
+2. **Add incrementally**: Add specific rules only as your `resourceRefs` require them
 3. **Audit regularly**: Review and remove unused permissions
 4. **Use production values**: Always use the production configuration for production deployments
 
@@ -58,8 +56,8 @@ The operator only needs **read access** to resources that GitCommit and PullRequ
 
 The included `values-production.yaml` provides a secure baseline configuration:
 
-- Disables wildcard RBAC permissions
-- Includes only essential resource permissions
+- No extra RBAC rules by default (`extraRbac: []`)
+- Commented-out examples to copy and adapt
 - Sets appropriate resource limits
 - Configures security contexts
 
