@@ -1222,9 +1222,10 @@ spec:
 ```yaml
 # Minimal RBAC for PullRequest operations
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: pullrequest-operator
+  namespace: <namespace>
 rules:
 # PullRequest resources
 - apiGroups: ["gco.galos.one"]

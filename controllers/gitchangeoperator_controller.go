@@ -31,14 +31,6 @@ type GitChangeOperatorReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=gco.galos.one,resources=gitchangeoperators,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=gco.galos.one,resources=gitchangeoperators/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=gco.galos.one,resources=gitchangeoperators/finalizers,verbs=update
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
-
 func (r *GitChangeOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 

@@ -154,17 +154,18 @@ Error: configmaps is forbidden: User "system:serviceaccount:git-change-operator-
 ```
 
 **Solutions:**
-1. Check existing ClusterRole:
+1. Check existing Role:
    ```bash
-   kubectl get clusterrole git-change-operator-manager-role -o yaml
+   kubectl get role git-change-operator-manager-role -n <namespace> -o yaml
    ```
 
-2. Update ClusterRole to include required permissions:
+2. Update Role to include required permissions:
    ```yaml
    apiVersion: rbac.authorization.k8s.io/v1
-   kind: ClusterRole
+   kind: Role
    metadata:
      name: git-change-operator-manager-role
+     namespace: <namespace>
    rules:
    - apiGroups: [""]
      resources: ["configmaps", "secrets"]
@@ -330,7 +331,7 @@ status:
 | `RepositoryNotFound` | Repository doesn't exist or inaccessible | Verify URL and permissions |
 | `ResourceNotFound` | Referenced Kubernetes resource not found | Check resource name and namespace |
 | `FieldNotFound` | Field path invalid for single-field strategy | Verify field path |
-| `PermissionDenied` | Insufficient RBAC permissions | Update ClusterRole/Role |
+| `PermissionDenied` | Insufficient RBAC permissions | Update Role permissions |
 | `InvalidConfiguration` | Invalid GitCommit specification | Review YAML configuration |
 
 ## Monitoring and Alerting

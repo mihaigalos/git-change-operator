@@ -40,12 +40,6 @@ type PullRequestReconciler struct {
 	metricsCollector *MetricsCollector
 }
 
-//+kubebuilder:rbac:groups=gco.galos.one,resources=pullrequests,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=gco.galos.one,resources=pullrequests/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=gco.galos.one,resources=pullrequests/finalizers,verbs=update
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
-//+kubebuilder:rbac:groups="*",resources="*",verbs=get;list;watch
-
 func (r *PullRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 

@@ -16,7 +16,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "git-change-operator.clusterRoleName" . }}
+  name: {{ include "git-change-operator.roleName" . }}
   namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "git-change-operator.labels" . | nindent 4 }}
@@ -169,14 +169,14 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "git-change-operator.clusterRoleBindingName" . }}
+  name: {{ include "git-change-operator.roleBindingName" . }}
   namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "git-change-operator.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "git-change-operator.clusterRoleName" . }}
+  name: {{ include "git-change-operator.roleName" . }}
 subjects:
 - kind: ServiceAccount
   name: {{ include "git-change-operator.serviceAccountName" . }}
