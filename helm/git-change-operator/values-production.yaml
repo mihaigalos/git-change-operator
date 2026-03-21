@@ -1,55 +1,21 @@
 # Production values for git-change-operator
 # This configuration uses minimal, specific RBAC permissions
 
-# Use specific RBAC permissions instead of wildcards
+# Extra RBAC rules for resources your GitCommit/PullRequest specs reference.
+# Uncomment and customise as needed - keep to the minimum required.
 rbac:
   create: true
-  additionalReadPermissions:
-    # Disable wildcard permissions for security
-    enableWildcard: false
-    
-    # Grant only specific permissions needed by your use case
-    specificPermissions:
-      # Core Kubernetes resources
-      - apiGroups: [""]
-        resources: 
-          - "configmaps"
-          - "secrets" 
-          - "pods"
-          - "services"
-          - "persistentvolumeclaims"
-          
-      # Application resources  
-      - apiGroups: ["apps"]
-        resources:
-          - "deployments"
-          - "replicasets" 
-          - "statefulsets"
-          - "daemonsets"
-          
-      # Networking resources
-      - apiGroups: ["networking.k8s.io"]
-        resources:
-          - "ingresses"
-          - "networkpolicies"
-          
-      # Storage resources
-      - apiGroups: ["storage.k8s.io"]  
-        resources:
-          - "storageclasses"
-          - "volumeattachments"
-          
-      # RBAC resources (if needed for compliance reporting)
-      - apiGroups: ["rbac.authorization.k8s.io"]
-        resources:
-          - "roles"
-          - "rolebindings" 
-          - "clusterroles"
-          - "clusterrolebindings"
-          
-      # Custom resources (add your CRDs here)
-      # - apiGroups: ["custom.example.com"]
-      #   resources: ["mycustomresources"]
+  extraRbac: []
+  # extraRbac:
+  #   - apiGroups: [""]
+  #     resources: ["configmaps", "pods", "services", "persistentvolumeclaims"]
+  #     verbs: ["get", "list", "watch"]
+  #   - apiGroups: ["apps"]
+  #     resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+  #     verbs: ["get", "list", "watch"]
+  #   - apiGroups: ["networking.k8s.io"]
+  #     resources: ["ingresses", "networkpolicies"]
+  #     verbs: ["get", "list", "watch"]
 
 # Production security settings
 securityContext:
