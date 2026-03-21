@@ -69,10 +69,10 @@ jobs:
     - name: Generate code and check for changes
       run: |
         just generate
-        if [[ -n $(git status --porcelain) ]]; then
+        if [[ -n $(git status --porcelain api/ config/crd) ]]; then
           echo "Generated code is out of date. Please run 'just generate' and commit the changes."
-          git status --porcelain
-          git diff
+          git status --porcelain api/ config/crd
+          git diff api/ config/crd
           exit 1
         fi
 

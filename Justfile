@@ -59,7 +59,7 @@ setup-test-env:
     command -v controller-gen &>/dev/null || go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
     mkdir -p ./bin/kubebuilder
     setup-envtest use {{setup_envtest_k8s_version}} --bin-dir ./bin/kubebuilder
-    test -f test/resources/id_rsa_4096 || ssh-keygen -t rsa -b 4096 -f test/resources/id_rsa_4096 -N "" -C "test-key"
+    test -f test/resources/id_rsa_4096 || ssh-keygen -t rsa -b 4096 -f test/resources/id_rsa_4096 -N "" -C "test-key-for-git-change-operator"
 
 # Run integration tests
 [group('test')]
