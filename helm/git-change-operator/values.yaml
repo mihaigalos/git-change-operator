@@ -144,6 +144,9 @@ operator:
   probeAddr: :8081
   # Leader election
   leaderElect: false
+  # Namespace to watch for resources. Empty string means all namespaces (cluster-scoped watch).
+  # Set to the release namespace to restrict to a single namespace (recommended).
+  watchNamespace: ""
 
 # Webhook configuration (if implemented in future)
 webhook:

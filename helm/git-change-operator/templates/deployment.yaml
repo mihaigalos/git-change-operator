@@ -45,6 +45,9 @@ spec:
         {{- if ne .Values.operator.logLevel "info" }}
         - --log-level={{ .Values.operator.logLevel }}
         {{- end }}
+        {{- if .Values.operator.watchNamespace }}
+        - --watch-namespace={{ .Values.operator.watchNamespace }}
+        {{- end }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
         livenessProbe:
