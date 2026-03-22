@@ -45,6 +45,9 @@ spec:
         {{- if ne .Values.operator.logLevel "info" }}
         - --log-level={{ .Values.operator.logLevel }}
         {{- end }}
+        {{- if .Values.operator.watchNamespace }}
+        - --watch-namespace={{ .Values.operator.watchNamespace }}
+        {{- end }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
         livenessProbe:
@@ -70,6 +73,11 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         volumeMounts:
         - mountPath: /tmp
           name: tmp

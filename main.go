@@ -9,6 +9,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -31,15 +32,22 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var watchNamespace string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager.")
+	flag.StringVar(&watchNamespace, "watch-namespace", "", "Namespace to watch for resources. Empty string defaults to the pod's own namespace (POD_NAMESPACE env var).")
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	// Default to the pod's own namespace when --watch-namespace is not explicitly set.
+	if watchNamespace == "" {
+		watchNamespace = os.Getenv("POD_NAMESPACE")
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -49,6 +57,12 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "git-change-operator",
+		Cache: func() cache.Options {
+			if watchNamespace != "" {
+				return cache.Options{DefaultNamespaces: map[string]cache.Config{watchNamespace: {}}}
+			}
+			return cache.Options{}
+		}(),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
