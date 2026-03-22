@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -121,10 +122,19 @@ func (r *GitChangeOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	// Update status
-	gitChangeOperator.Status.Phase = "Ready"
-	gitChangeOperator.Status.ObservedGeneration = gitChangeOperator.Generation
-	if err := r.Status().Update(ctx, &gitChangeOperator); err != nil {
+	// Update status with retry on conflict to handle races from Owns() watch triggers.
+	phase := "Ready"
+	observedGen := gitChangeOperator.Generation
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		fresh := &gitchangeoperatoriov1.GitChangeOperator{}
+		if err := r.Get(ctx, req.NamespacedName, fresh); err != nil {
+			return err
+		}
+		fresh.Status.Phase = phase
+		fresh.Status.ObservedGeneration = observedGen
+		return r.Status().Update(ctx, fresh)
+	})
+	if err != nil {
 		log.Error(err, "Failed to update status")
 		return ctrl.Result{}, err
 	}
