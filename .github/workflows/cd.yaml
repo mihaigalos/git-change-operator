@@ -93,7 +93,7 @@ jobs:
     
     - name: Run tests
       run: |
-        just test-unit
+        just test
     
     - name: Build and push Docker image
       run: |
