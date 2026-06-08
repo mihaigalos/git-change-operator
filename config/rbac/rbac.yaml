@@ -67,11 +67,13 @@ rules:
   resources:
   - deployments
   verbs:
+  - create
+  - delete
   - get
   - list
-  - watch
-  - update
   - patch
+  - update
+  - watch
 - apiGroups:
   - ""
   resources:
