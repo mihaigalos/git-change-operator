@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.20.1
+    controller-gen.kubebuilder.io/version: v0.21.0
   name: gitchangeoperators.gco.galos.one
 spec:
   group: gco.galos.one
@@ -208,8 +208,10 @@ spec:
                     type: boolean
                 type: object
               replicaCount:
-                description: ReplicaCount is the number of replicas for the operator
-                  deployment
+                description: |-
+                  ReplicaCount is the number of replicas for the operator deployment.
+                  When nil the controller leaves replicas unmanaged (e.g. KEDA has not yet written a value).
+                  Set to 0 to scale the operator to zero.
                 format: int32
                 type: integer
               serviceAccount:
