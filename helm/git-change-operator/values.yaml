@@ -15,7 +15,7 @@ imagePullSecrets: []
 
 # Name override for the chart
 nameOverride: ""
-fullnameOverride: ""
+fullnameOverride: "gco"
 
 # Operator deployment configuration
 replicaCount: 1
