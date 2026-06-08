@@ -64,7 +64,7 @@ spec:
   replicaCount: 2  # Scale operator
   image:
     repository: ghcr.io/mihaigalos/git-change-operator
-    tag: v1.2.0  # Update image version
+    tag: 1.2.2  # Update image version
   metrics:
     enabled: true
 ```
