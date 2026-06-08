@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -52,6 +53,14 @@ func (r *GitChangeOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if !controllerutil.ContainsFinalizer(&gitChangeOperator, finalizerName) {
 		controllerutil.AddFinalizer(&gitChangeOperator, finalizerName)
 		if err := r.Update(ctx, &gitChangeOperator); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	// Reconcile Deployment replica count (only when the field is explicitly set).
+	if gitChangeOperator.Spec.ReplicaCount != nil {
+		if err := r.reconcileDeployment(ctx, &gitChangeOperator); err != nil {
+			log.Error(err, "Failed to reconcile Deployment")
 			return ctrl.Result{}, err
 		}
 	}
@@ -141,6 +150,28 @@ func (r *GitChangeOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	log.Info("Successfully reconciled GitChangeOperator")
 	return ctrl.Result{}, nil
+}
+
+func (r *GitChangeOperatorReconciler) reconcileDeployment(ctx context.Context, gco *gitchangeoperatoriov1.GitChangeOperator) error {
+	deployName := fmt.Sprintf("%s-controller-manager", gco.Name)
+
+	deployment := &appsv1.Deployment{}
+	if err := r.Get(ctx, types.NamespacedName{Name: deployName, Namespace: gco.Namespace}, deployment); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	replicas := *gco.Spec.ReplicaCount
+	if deployment.Spec.Replicas == nil || *deployment.Spec.Replicas != replicas {
+		patch := client.MergeFrom(deployment.DeepCopy())
+		deployment.Spec.Replicas = &replicas
+		if err := r.Patch(ctx, deployment, patch); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *GitChangeOperatorReconciler) handleDeletion(ctx context.Context, gco *gitchangeoperatoriov1.GitChangeOperator) (ctrl.Result, error) {
