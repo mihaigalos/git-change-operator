@@ -5,7 +5,7 @@ The operator then manages its own resources dynamically via GitChangeOperator CR
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "git-change-operator.fullname" . }}-controller-manager
+  name: {{ include "git-change-operator.fullname" . }}-manager
   namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "git-change-operator.labels" . | nindent 4 }}
@@ -39,6 +39,7 @@ spec:
         image: {{ include "git-change-operator.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
+        - --mode=manager
         - --leader-elect={{ .Values.operator.leaderElect }}
         - --metrics-bind-address={{ .Values.operator.metricsAddr }}
         - --health-probe-bind-address={{ .Values.operator.probeAddr }}
@@ -78,6 +79,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: OPERAND_IMAGE
+          value: {{ include "git-change-operator.image" . }}
+        - name: OPERATOR_SERVICE_ACCOUNT
+          value: {{ include "git-change-operator.serviceAccountName" . }}
         volumeMounts:
         - mountPath: /tmp
           name: tmp

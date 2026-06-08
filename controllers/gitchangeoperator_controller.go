@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -57,12 +58,10 @@ func (r *GitChangeOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		}
 	}
 
-	// Reconcile Deployment replica count (only when the field is explicitly set).
-	if gitChangeOperator.Spec.ReplicaCount != nil {
-		if err := r.reconcileDeployment(ctx, &gitChangeOperator); err != nil {
-			log.Error(err, "Failed to reconcile Deployment")
-			return ctrl.Result{}, err
-		}
+	// Reconcile the operator Deployment. The manager always ensures it exists.
+	if err := r.reconcileDeployment(ctx, &gitChangeOperator); err != nil {
+		log.Error(err, "Failed to reconcile operator Deployment")
+		return ctrl.Result{}, err
 	}
 
 	// Reconcile ServiceAccount
@@ -153,25 +152,120 @@ func (r *GitChangeOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Re
 }
 
 func (r *GitChangeOperatorReconciler) reconcileDeployment(ctx context.Context, gco *gitchangeoperatoriov1.GitChangeOperator) error {
-	deployName := fmt.Sprintf("%s-controller-manager", gco.Name)
-
-	deployment := &appsv1.Deployment{}
-	if err := r.Get(ctx, types.NamespacedName{Name: deployName, Namespace: gco.Namespace}, deployment); err != nil {
-		if errors.IsNotFound(err) {
-			return nil
+	// Determine the operator image. OPERAND_IMAGE is injected by the manager Helm Deployment;
+	// spec.image is the fallback for non-Helm installs.
+	operandImage := os.Getenv("OPERAND_IMAGE")
+	if operandImage == "" && gco.Spec.Image.Repository != "" {
+		tag := gco.Spec.Image.Tag
+		if tag == "" {
+			tag = "latest"
 		}
+		operandImage = gco.Spec.Image.Repository + ":" + tag
+	}
+	if operandImage == "" {
+		return fmt.Errorf("operator image not configured: set OPERAND_IMAGE env var or spec.image on the GitChangeOperator CR")
+	}
+
+	// Determine the SA the operator pod will use. OPERATOR_SERVICE_ACCOUNT is injected
+	// by the manager Helm Deployment so both pods share the Helm-created SA.
+	saName := os.Getenv("OPERATOR_SERVICE_ACCOUNT")
+	if saName == "" {
+		saName = fmt.Sprintf("%s-operator", gco.Name)
+	}
+
+	replicas := int32(1)
+	if gco.Spec.ReplicaCount != nil {
+		replicas = *gco.Spec.ReplicaCount
+	}
+
+	pullPolicy := corev1.PullIfNotPresent
+	if gco.Spec.Image.PullPolicy != "" {
+		pullPolicy = corev1.PullPolicy(gco.Spec.Image.PullPolicy)
+	}
+
+	metricsAddr := ":8080"
+	if gco.Spec.Operator.MetricsAddr != "" {
+		metricsAddr = gco.Spec.Operator.MetricsAddr
+	}
+	probeAddr := ":8081"
+	if gco.Spec.Operator.ProbeAddr != "" {
+		probeAddr = gco.Spec.Operator.ProbeAddr
+	}
+	args := []string{
+		"--mode=operator",
+		"--metrics-bind-address=" + metricsAddr,
+		"--health-probe-bind-address=" + probeAddr,
+	}
+	if gco.Spec.Operator.LeaderElect {
+		args = append(args, "--leader-elect=true")
+	}
+
+	gracePeriod := int64(10)
+	selectorLabels := map[string]string{
+		"app.kubernetes.io/name":      "git-change-operator",
+		"app.kubernetes.io/component": "operator",
+	}
+
+	deployName := fmt.Sprintf("%s-operator", gco.Name)
+	desired := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deployName,
+			Namespace: gco.Namespace,
+			Labels:    selectorLabels,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{MatchLabels: selectorLabels},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: selectorLabels},
+				Spec: corev1.PodSpec{
+					ServiceAccountName:            saName,
+					TerminationGracePeriodSeconds: &gracePeriod,
+					Containers: []corev1.Container{
+						{
+							Name:            "operator",
+							Image:           operandImage,
+							ImagePullPolicy: pullPolicy,
+							Args:            args,
+							Env: []corev1.EnvVar{
+								{
+									Name: "POD_NAMESPACE",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.namespace"},
+									},
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{{Name: "tmp", MountPath: "/tmp"}},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{Name: "tmp", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+					},
+				},
+			},
+		},
+	}
+
+	if err := controllerutil.SetControllerReference(gco, desired, r.Scheme); err != nil {
 		return err
 	}
 
-	replicas := *gco.Spec.ReplicaCount
-	if deployment.Spec.Replicas == nil || *deployment.Spec.Replicas != replicas {
-		patch := client.MergeFrom(deployment.DeepCopy())
-		deployment.Spec.Replicas = &replicas
-		if err := r.Patch(ctx, deployment, patch); err != nil {
-			return err
-		}
+	found := &appsv1.Deployment{}
+	err := r.Get(ctx, types.NamespacedName{Name: deployName, Namespace: gco.Namespace}, found)
+	if err != nil && errors.IsNotFound(err) {
+		return r.Create(ctx, desired)
+	} else if err != nil {
+		return err
 	}
-	return nil
+
+	// Patch only the mutable fields: replicas, image, and args.
+	patch := client.MergeFrom(found.DeepCopy())
+	found.Spec.Replicas = &replicas
+	if len(found.Spec.Template.Spec.Containers) > 0 {
+		found.Spec.Template.Spec.Containers[0].Image = operandImage
+		found.Spec.Template.Spec.Containers[0].Args = args
+	}
+	return r.Patch(ctx, found, patch)
 }
 
 func (r *GitChangeOperatorReconciler) handleDeletion(ctx context.Context, gco *gitchangeoperatoriov1.GitChangeOperator) (ctrl.Result, error) {
@@ -232,6 +326,11 @@ func (r *GitChangeOperatorReconciler) reconcileRole(ctx context.Context, gco *gi
 				APIGroups: []string{""},
 				Resources: []string{"secrets"},
 				Verbs:     []string{"get", "list", "watch"},
+			},
+			{
+				APIGroups: []string{"apps"},
+				Resources: []string{"deployments"},
+				Verbs:     []string{"create", "delete", "get", "list", "patch", "update", "watch"},
 			},
 			{
 				APIGroups: []string{"coordination.k8s.io"},

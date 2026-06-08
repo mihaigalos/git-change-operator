@@ -33,11 +33,13 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var watchNamespace string
+	var mode string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false, "Enable leader election for controller manager.")
 	flag.StringVar(&watchNamespace, "watch-namespace", "", "Namespace to watch for resources. Empty string defaults to the pod's own namespace (POD_NAMESPACE env var).")
+	flag.StringVar(&mode, "mode", "operator", "Run mode: 'manager' (GitChangeOperator controller) or 'operator' (GitCommit/PullRequest controllers).")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -51,12 +53,14 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	leaderElectionID := "gco-" + mode
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "git-change-operator",
+		LeaderElectionID:       leaderElectionID,
 		Cache: func() cache.Options {
 			if watchNamespace != "" {
 				return cache.Options{DefaultNamespaces: map[string]cache.Config{watchNamespace: {}}}
@@ -69,28 +73,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.GitCommitReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GitCommit")
-		os.Exit(1)
-	}
+	if mode == "manager" {
+		if err = (&controllers.GitChangeOperatorReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "GitChangeOperator")
+			os.Exit(1)
+		}
+	} else {
+		if err = (&controllers.GitCommitReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "GitCommit")
+			os.Exit(1)
+		}
 
-	if err = (&controllers.PullRequestReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "PullRequest")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.GitChangeOperatorReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GitChangeOperator")
-		os.Exit(1)
+		if err = (&controllers.PullRequestReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "PullRequest")
+			os.Exit(1)
+		}
 	}
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
