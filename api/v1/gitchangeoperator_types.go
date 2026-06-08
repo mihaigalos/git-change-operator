@@ -7,9 +7,11 @@ import (
 
 // GitChangeOperatorSpec defines the desired state of GitChangeOperator
 type GitChangeOperatorSpec struct {
-	// ReplicaCount is the number of replicas for the operator deployment
+	// ReplicaCount is the number of replicas for the operator deployment.
+	// When nil the controller leaves replicas unmanaged (e.g. KEDA has not yet written a value).
+	// Set to 0 to scale the operator to zero.
 	// +optional
-	ReplicaCount int32 `json:"replicaCount,omitempty"`
+	ReplicaCount *int32 `json:"replicaCount,omitempty"`
 
 	// Image configuration for the operator
 	// +optional
