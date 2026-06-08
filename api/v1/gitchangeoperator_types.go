@@ -1,6 +1,7 @@
 package v1
 
 import (
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -82,6 +83,12 @@ type RBACConfig struct {
 	// Create specifies whether to create RBAC resources
 	// +optional
 	Create bool `json:"create,omitempty"`
+
+	// ExtraRbac is a list of additional RBAC policy rules appended to the child operator's Role.
+	// Use this to grant the operator read access to Kubernetes resources referenced via
+	// resourceRefs in GitCommit or PullRequest specs.
+	// +optional
+	ExtraRbac []rbacv1.PolicyRule `json:"extraRbac,omitempty"`
 }
 
 // ServiceAccountConfig defines ServiceAccount configuration

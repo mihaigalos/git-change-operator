@@ -323,14 +323,10 @@ func (r *GitChangeOperatorReconciler) reconcileRole(ctx context.Context, gco *gi
 				Verbs:     []string{"create", "patch"},
 			},
 			{
+				// Secrets are only ever fetched by exact name from CR spec fields; list/watch not needed.
 				APIGroups: []string{""},
 				Resources: []string{"secrets"},
-				Verbs:     []string{"get", "list", "watch"},
-			},
-			{
-				APIGroups: []string{"apps"},
-				Resources: []string{"deployments"},
-				Verbs:     []string{"create", "delete", "get", "list", "patch", "update", "watch"},
+				Verbs:     []string{"get"},
 			},
 			{
 				APIGroups: []string{"coordination.k8s.io"},
@@ -339,21 +335,23 @@ func (r *GitChangeOperatorReconciler) reconcileRole(ctx context.Context, gco *gi
 			},
 			{
 				APIGroups: []string{"gco.galos.one"},
-				Resources: []string{"gitcommits", "pullrequests", "gitchangeoperators"},
+				Resources: []string{"gitcommits", "pullrequests"},
 				Verbs:     []string{"create", "delete", "get", "list", "patch", "update", "watch"},
 			},
 			{
 				APIGroups: []string{"gco.galos.one"},
-				Resources: []string{"gitcommits/finalizers", "pullrequests/finalizers", "gitchangeoperators/finalizers"},
+				Resources: []string{"gitcommits/finalizers", "pullrequests/finalizers"},
 				Verbs:     []string{"update"},
 			},
 			{
 				APIGroups: []string{"gco.galos.one"},
-				Resources: []string{"gitcommits/status", "pullrequests/status", "gitchangeoperators/status"},
+				Resources: []string{"gitcommits/status", "pullrequests/status"},
 				Verbs:     []string{"get", "patch", "update"},
 			},
 		},
 	}
+
+	role.Rules = append(role.Rules, gco.Spec.RBAC.ExtraRbac...)
 
 	if err := controllerutil.SetControllerReference(gco, role, r.Scheme); err != nil {
 		return err
