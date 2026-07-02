@@ -129,7 +129,7 @@ extra:
 
 nav:
   - Home: index.md
-  
+
   - Security:
     - Security Considerations: security/considerations.md
 
@@ -170,5 +170,4 @@ extra_css:
 
 extra_javascript:
   - javascripts/mathjax.js
-  - https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6
   - https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js
